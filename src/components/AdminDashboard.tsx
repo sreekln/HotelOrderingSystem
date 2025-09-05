@@ -1,0 +1,540 @@
+import React, { useState, useEffect } from 'react';
+import { Order, MenuItem, mockOrders, mockUsers, mockMenuItems } from '../lib/mockData';
+import { 
+  DollarSign, 
+  TrendingUp, 
+  Users, 
+  ShoppingBag, 
+  Plus,
+  Edit,
+  Trash2,
+  Settings
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+
+interface DashboardStats {
+  totalRevenue: number;
+  totalOrders: number;
+  totalCustomers: number;
+  averageOrderValue: number;
+}
+
+const AdminDashboard: React.FC = () => {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalCustomers: 0,
+    averageOrderValue: 0
+  });
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'menu'>('overview');
+  const [showMenuForm, setShowMenuForm] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [menuForm, setMenuForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category: 'appetizer',
+    available: true
+  });
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Calculate stats from mock data
+      const paidOrders = mockOrders.filter(o => o.status !== 'cancelled' && o.payment_status === 'paid');
+      const totalRevenue = paidOrders.reduce((sum, order) => sum + order.total_amount, 0);
+      const uniqueCustomers = new Set(paidOrders.map(o => o.customer_id)).size;
+      const averageOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
+
+      setStats({
+        totalRevenue,
+        totalOrders: paidOrders.length,
+        totalCustomers: uniqueCustomers,
+        averageOrderValue
+      });
+
+      // Get recent orders with customer info
+      const recentOrdersWithCustomers = mockOrders
+        .map(order => ({
+          ...order,
+          customer: mockUsers.find(user => user.id === order.customer_id)
+        }))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
+      
+      setRecentOrders(recentOrdersWithCustomers as any);
+      
+      // Set menu items
+      const sortedMenuItems = [...mockMenuItems].sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
+      setMenuItems(sortedMenuItems);
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMenuSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const menuData = {
+        id: editingItem?.id || `menu-${Date.now()}`,
+        ...menuForm,
+        price: parseFloat(menuForm.price),
+        created_at: editingItem?.created_at || new Date().toISOString()
+      };
+
+      if (editingItem) {
+        // Update existing item
+        const itemIndex = mockMenuItems.findIndex(item => item.id === editingItem.id);
+        if (itemIndex !== -1) {
+          mockMenuItems[itemIndex] = menuData as MenuItem;
+        }
+        toast.success('Menu item updated successfully');
+      } else {
+        // Add new item
+        mockMenuItems.push(menuData as MenuItem);
+        toast.success('Menu item added successfully');
+      }
+
+      setShowMenuForm(false);
+      setEditingItem(null);
+      setMenuForm({
+        name: '',
+        description: '',
+        price: '',
+        category: 'appetizer',
+        available: true
+      });
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error saving menu item:', error);
+      toast.error('Failed to save menu item');
+    }
+  };
+
+  const handleEditItem = (item: MenuItem) => {
+    setEditingItem(item);
+    setMenuForm({
+      name: item.name,
+      description: item.description,
+      price: item.price.toString(),
+      category: item.category,
+      available: item.available
+    });
+    setShowMenuForm(true);
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this menu item?')) {
+      return;
+    }
+
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Remove item from mock data
+      const itemIndex = mockMenuItems.findIndex(item => item.id === itemId);
+      if (itemIndex !== -1) {
+        mockMenuItems.splice(itemIndex, 1);
+      }
+      
+      toast.success('Menu item deleted successfully');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      toast.error('Failed to delete menu item');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-50';
+      case 'confirmed':
+        return 'text-blue-600 bg-blue-50';
+      case 'preparing':
+        return 'text-orange-600 bg-orange-50';
+      case 'ready':
+      case 'delivered':
+        return 'text-green-600 bg-green-50';
+      case 'cancelled':
+        return 'text-red-600 bg-red-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <Settings className="h-8 w-8 mr-3 text-purple-600" />
+          Admin Dashboard
+        </h1>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {[
+              { key: 'overview', label: 'Overview' },
+              { key: 'orders', label: 'Recent Orders' },
+              { key: 'menu', label: 'Menu Management' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
+                    ? 'border-purple-500 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Content */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-md">
+                  <DollarSign className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                  <p className="text-2xl font-bold text-gray-900">${stats.totalRevenue.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-md">
+                  <ShoppingBag className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-md">
+                  <Users className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalCustomers}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 rounded-md">
+                  <TrendingUp className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
+                  <p className="text-2xl font-bold text-gray-900">${stats.averageOrderValue.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Orders Preview */}
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3">
+                {recentOrders.slice(0, 5).map((order) => (
+                  <div key={order.id} className="flex justify-between items-center py-2">
+                    <div>
+                      <p className="font-medium">Order #{order.id.slice(-6)}</p>
+                      <p className="text-sm text-gray-600">
+                        {(order as any).customer?.full_name} • {format(new Date(order.created_at), 'MMM dd, HH:mm')}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className="font-semibold">${order.total_amount.toFixed(2)}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="p-6 border-b">
+            <h3 className="text-lg font-semibold text-gray-900">All Orders</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Subtotal
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tax
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {recentOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      #{order.id.slice(-6)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {(order as any).customer?.full_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ${order.subtotal.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ${order.tax_amount.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ${order.total_amount.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium text-green-600 bg-green-50">
+                        {order.payment_status === 'paid' ? 'Cash' : 'Paid'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'menu' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">Menu Items</h3>
+              <button
+                onClick={() => setShowMenuForm(true)}
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </button>
+            </div>
+
+            {showMenuForm && (
+              <div className="p-6 border-b bg-gray-50">
+                <form onSubmit={handleMenuSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={menuForm.name}
+                      onChange={(e) => setMenuForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={menuForm.price}
+                      onChange={(e) => setMenuForm(prev => ({ ...prev, price: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select
+                      value={menuForm.category}
+                      onChange={(e) => setMenuForm(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="appetizer">Appetizer</option>
+                      <option value="main">Main Course</option>
+                      <option value="dessert">Dessert</option>
+                      <option value="beverage">Beverage</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={menuForm.available}
+                        onChange={(e) => setMenuForm(prev => ({ ...prev, available: e.target.checked }))}
+                        className="mr-2"
+                      />
+                      Available
+                    </label>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={menuForm.description}
+                      onChange={(e) => setMenuForm(prev => ({ ...prev, description: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 flex space-x-3">
+                    <button
+                      type="submit"
+                      className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+                    >
+                      {editingItem ? 'Update' : 'Add'} Item
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMenuForm(false);
+                        setEditingItem(null);
+                        setMenuForm({
+                          name: '',
+                          description: '',
+                          price: '',
+                          category: 'appetizer',
+                          available: true
+                        });
+                      }}
+                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {menuItems.map((item) => (
+                  <div key={item.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="font-semibold">{item.name}</h4>
+                        <p className="text-sm text-gray-600 capitalize">{item.category}</p>
+                      </div>
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{item.description}</p>
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-purple-600">${item.price.toFixed(2)}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        item.available 
+                          ? 'text-green-600 bg-green-50' 
+                          : 'text-red-600 bg-red-50'
+                      }`}>
+                        {item.available ? 'Available' : 'Unavailable'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminDashboard;
