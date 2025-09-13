@@ -47,7 +47,7 @@ const Auth: React.FC = () => {
           <div className="mx-auto h-16 w-16 bg-amber-600 rounded-full flex items-center justify-center">
             <Hotel className="h-8 w-8 text-white" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Hotel Elegance</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">Lush & Hush</h2>
           <p className="mt-2 text-sm text-gray-600">
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </p>
