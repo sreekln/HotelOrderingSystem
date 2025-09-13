@@ -242,16 +242,38 @@ export const mockMenuItems: MenuItem[] = [
 ];
 
 // Tax rate for hotel restaurant orders
-export const TAX_RATE = 0.085; // 8.5%
+export const TAX_RATE = 0.085; // 8.5% (fallback rate)
 
 // Helper function to calculate tax
-export const calculateTax = (subtotal: number): number => {
-  return Math.round(subtotal * TAX_RATE * 100) / 100;
+export const calculateTax = (subtotal: number, taxRate: number = TAX_RATE): number => {
+  return Math.round(subtotal * (taxRate / 100) * 100) / 100;
 };
 
 // Helper function to calculate total with tax
-export const calculateTotal = (subtotal: number): number => {
-  return subtotal + calculateTax(subtotal);
+export const calculateTotal = (subtotal: number, taxRate: number = TAX_RATE): number => {
+  return subtotal + calculateTax(subtotal, taxRate);
+};
+
+// Helper function to calculate tax for cart items with individual tax rates
+export const calculateCartTax = (cartItems: { item: MenuItem; quantity: number }[]): number => {
+  return cartItems.reduce((totalTax, cartItem) => {
+    const itemSubtotal = cartItem.item.price * cartItem.quantity;
+    const itemTax = calculateTax(itemSubtotal, cartItem.item.tax_rate);
+    return totalTax + itemTax;
+  }, 0);
+};
+
+// Helper function to calculate total for cart items with individual tax rates
+export const calculateCartTotal = (cartItems: { item: MenuItem; quantity: number }[]): { subtotal: number; tax: number; total: number } => {
+  const subtotal = cartItems.reduce((sum, cartItem) => sum + (cartItem.item.price * cartItem.quantity), 0);
+  const tax = calculateCartTax(cartItems);
+  const total = subtotal + tax;
+  
+  return {
+    subtotal: Math.round(subtotal * 100) / 100,
+    tax: Math.round(tax * 100) / 100,
+    total: Math.round(total * 100) / 100
+  };
 };
 
 // Mock Orders

@@ -104,12 +104,13 @@ const CustomerDashboard: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Create new order
+      const cartCalculation = calculateCartTotal(cart);
       const newOrder: Order = {
         id: `order-${Date.now()}`,
         customer_id: user.id,
-        subtotal: getSubtotal(),
-        tax_amount: getTaxAmount(),
-        total_amount: getFinalTotal(),
+        subtotal: cartCalculation.subtotal,
+        tax_amount: cartCalculation.tax,
+        total_amount: cartCalculation.total,
         status: 'pending',
         payment_status: 'paid',
         table_number: tableNumber,
