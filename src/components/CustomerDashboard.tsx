@@ -91,7 +91,7 @@ const CustomerDashboard: React.FC = () => {
   };
 
   const getFinalTotal = () => {
-    return calculateTotal(getSubtotal());
+    return calculateTotal(getSubtotal() + getTaxAmount());
   };
 
   const createOrder = async () => {
