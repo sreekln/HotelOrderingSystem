@@ -79,7 +79,7 @@ const CustomerDashboard: React.FC = () => {
   };
 
   const getTotalAmount = () => {
-    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity * cartItem.item.tax_rate / 100), 0);
+    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
   };
 
   
