@@ -104,13 +104,12 @@ const CustomerDashboard: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Create new order
-      const cartCalculation = calculateCartTotal(cart);
       const newOrder: Order = {
         id: `order-${Date.now()}`,
         customer_id: user.id,
-        subtotal: cartCalculation.subtotal,
-        tax_amount: cartCalculation.tax,
-        total_amount: cartCalculation.total,
+        subtotal: getSubtotal(),
+        tax_amount: getTaxAmount(),
+        total_amount: getFinalTotal(),
         status: 'pending',
         payment_status: 'paid',
         table_number: tableNumber,
@@ -199,7 +198,7 @@ const CustomerDashboard: React.FC = () => {
                       </div>
                       <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                       <div className="mt-2">
-                        <p className="text-lg font-bold text-amber-600">${item.price.toFixed(2)}</p>
+                        <p className="text-lg font-bold text-amber-600">£{item.price.toFixed(2)}</p>
                         <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
                       </div>
                     </div>
@@ -238,7 +237,7 @@ const CustomerDashboard: React.FC = () => {
                     <div key={cartItem.item.id} className="flex justify-between items-center">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{cartItem.item.name}</p>
-                        <p className="text-amber-600 font-semibold">${cartItem.item.price.toFixed(2)}</p>
+                        <p className="text-amber-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
@@ -289,15 +288,23 @@ const CustomerDashboard: React.FC = () => {
                   <div className="border-t pt-3 space-y-2">
                     <div className="flex justify-between items-center text-sm">
                       <span>Subtotal:</span>
-                      <span>${getSubtotal().toFixed(2)}</span>
+                      <span>£{getSubtotal().toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                      <span>Tax (8.5%):</span>
-                      <span>${getTaxAmount().toFixed(2)}</span>
+                      <span>Tax:</span>
+                      <span>£{getTaxAmount().toFixed(2)}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 space-y-1">
+                      {cart.map((cartItem, index) => (
+                        <div key={index} className="flex justify-between">
+                          <span>{cartItem.item.name} ({cartItem.item.tax_rate}%)</span>
+                          <span>£{(cartItem.item.price * cartItem.quantity * cartItem.item.tax_rate / 100).toFixed(2)}</span>
+                        </div>
+                      ))}
                     </div>
                     <div className="flex justify-between items-center font-bold text-lg border-t pt-2">
                       <span>Total:</span>
-                      <span className="text-amber-600">${getFinalTotal().toFixed(2)}</span>
+                      <span className="text-amber-600">£{getFinalTotal().toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -336,7 +343,7 @@ const CustomerDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                      <span>${order.total_amount.toFixed(2)}</span>
+                      <span>£{order.total_amount.toFixed(2)}</span>
                       <span className="text-gray-500">
                         {new Date(order.created_at).toLocaleTimeString()}
                       </span>

@@ -251,7 +251,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900">${stats.totalRevenue.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">£{stats.totalRevenue.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
-                  <p className="text-2xl font-bold text-gray-900">${stats.averageOrderValue.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">£{stats.averageOrderValue.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -309,7 +309,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className="font-semibold">${order.total_amount.toFixed(2)}</span>
+                      <span className="font-semibold">£{order.total_amount.toFixed(2)}</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
                         {order.status}
                       </span>
@@ -367,13 +367,13 @@ export default function AdminDashboard() {
                       {(order as any).customer?.full_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${order.subtotal.toFixed(2)}
+                      £{order.subtotal.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${order.tax_amount.toFixed(2)}
+                      £{order.tax_amount.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${order.total_amount.toFixed(2)}
+                      £{order.total_amount.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 rounded-full text-xs font-medium text-green-600 bg-green-50">
@@ -573,7 +573,7 @@ export default function AdminDashboard() {
                     <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                     <div className="flex justify-between items-center">
                       <div>
-                        <span className="font-bold text-purple-600">${item.price.toFixed(2)}</span>
+                        <span className="font-bold text-purple-600">£{item.price.toFixed(2)}</span>
                         <span className="text-xs text-gray-500 ml-2">Tax: {item.tax_rate}%</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
