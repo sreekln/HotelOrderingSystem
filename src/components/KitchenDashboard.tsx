@@ -218,6 +218,9 @@ const KitchenDashboard: React.FC = () => {
                       <div key={index} className="flex justify-between items-center">
                         <div className="flex-1">
                           <span className="font-medium text-sm">{item.menu_item.name}</span>
+                          <div className="text-xs text-gray-500">
+                            {item.menu_item.company} • {item.menu_item.food_category}
+                          </div>
                           {item.quantity > 1 && (
                             <span className="text-orange-600 font-semibold ml-2">×{item.quantity}</span>
                           )}

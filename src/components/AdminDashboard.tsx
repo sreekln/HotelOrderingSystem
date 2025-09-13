@@ -498,7 +498,8 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <h4 className="font-semibold">{item.name}</h4>
-                        <p className="text-sm text-gray-600 capitalize">{item.category}</p>
+                        <p className="text-sm text-gray-600 capitalize">{item.category} • {item.food_category}</p>
+                        <p className="text-xs text-gray-500">{item.company}</p>
                       </div>
                       <div className="flex space-x-1">
                         <button
@@ -517,7 +518,10 @@ const AdminDashboard: React.FC = () => {
                     </div>
                     <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-purple-600">${item.price.toFixed(2)}</span>
+                      <div>
+                        <span className="font-bold text-purple-600">${item.price.toFixed(2)}</span>
+                        <span className="text-xs text-gray-500 ml-2">Tax: {item.tax_rate}%</span>
+                      </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.available 
                           ? 'text-green-600 bg-green-50' 

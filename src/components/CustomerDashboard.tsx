@@ -190,8 +190,17 @@ const CustomerDashboard: React.FC = () => {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className="text-xs text-gray-500">{item.company}</span>
+                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                          {item.food_category}
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                      <p className="text-lg font-bold text-amber-600 mt-2">${item.price.toFixed(2)}</p>
+                      <div className="mt-2">
+                        <p className="text-lg font-bold text-amber-600">${item.price.toFixed(2)}</p>
+                        <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
+                      </div>
                     </div>
                     <button
                       onClick={() => addToCart(item)}

@@ -24,7 +24,10 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: string;
+  category: 'appetizer' | 'main' | 'dessert' | 'beverage';
+  company: string;
+  tax_rate: number;
+  food_category: 'Raw' | 'Cooked';
   image_url?: string;
   available: boolean;
   created_at: string;

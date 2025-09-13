@@ -12,7 +12,10 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: string;
+  category: 'appetizer' | 'main' | 'dessert' | 'beverage';
+  company: string;
+  tax_rate: number;
+  food_category: 'Raw' | 'Cooked';
   image_url?: string;
   available: boolean;
   created_at: string;
@@ -74,6 +77,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Fresh romaine lettuce with parmesan cheese, croutons, and our signature Caesar dressing',
     price: 12.99,
     category: 'appetizer',
+    company: 'Fresh Garden Co.',
+    tax_rate: 8.5,
+    food_category: 'Raw',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -83,6 +89,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Crispy chicken wings tossed in spicy buffalo sauce, served with blue cheese dip',
     price: 14.99,
     category: 'appetizer',
+    company: 'Wing Masters Inc.',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -92,6 +101,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Crispy risotto balls filled with truffle and parmesan, served with marinara sauce',
     price: 16.99,
     category: 'appetizer',
+    company: 'Gourmet Delights Ltd.',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -101,6 +113,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Fresh salmon fillet with lemon herb seasoning, served with roasted vegetables and quinoa',
     price: 28.99,
     category: 'main',
+    company: 'Ocean Fresh Seafood',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -110,6 +125,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Prime cut beef tenderloin cooked to perfection, served with garlic mashed potatoes',
     price: 34.99,
     category: 'main',
+    company: 'Premium Meats Co.',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -119,6 +137,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Creamy arborio rice with fresh lobster, asparagus, and white wine reduction',
     price: 32.99,
     category: 'main',
+    company: 'Coastal Cuisine Ltd.',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -128,6 +149,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Wood-fired pizza with fresh mozzarella, basil, and San Marzano tomatoes',
     price: 18.99,
     category: 'main',
+    company: 'Artisan Pizza Works',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -137,6 +161,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Warm chocolate cake with molten center, served with vanilla ice cream',
     price: 8.99,
     category: 'dessert',
+    company: 'Sweet Dreams Bakery',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -146,6 +173,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Traditional Italian dessert with coffee-soaked ladyfingers and mascarpone',
     price: 9.99,
     category: 'dessert',
+    company: 'Italian Delicacies Inc.',
+    tax_rate: 8.5,
+    food_category: 'Raw',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -155,6 +185,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Classic French custard with caramelized sugar crust and fresh berries',
     price: 10.99,
     category: 'dessert',
+    company: 'French Pastry House',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -164,6 +197,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Selection of premium red or white wine from our curated collection',
     price: 8.99,
     category: 'beverage',
+    company: 'Vineyard Select',
+    tax_rate: 10.0,
+    food_category: 'Raw',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -173,6 +209,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Local brewery selection featuring seasonal and signature brews',
     price: 6.99,
     category: 'beverage',
+    company: 'Local Brew Co.',
+    tax_rate: 10.0,
+    food_category: 'Raw',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -182,6 +221,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Freshly squeezed orange juice from premium Valencia oranges',
     price: 4.99,
     category: 'beverage',
+    company: 'Citrus Fresh Ltd.',
+    tax_rate: 8.5,
+    food_category: 'Raw',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -191,6 +233,9 @@ export const mockMenuItems: MenuItem[] = [
     description: 'Single-origin coffee beans expertly roasted and brewed to perfection',
     price: 3.99,
     category: 'beverage',
+    company: 'Roast Masters Coffee',
+    tax_rate: 8.5,
+    food_category: 'Cooked',
     available: true,
     created_at: '2024-01-01T10:00:00Z'
   }
