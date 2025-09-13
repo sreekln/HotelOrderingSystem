@@ -223,7 +223,7 @@ const KitchenDashboard: React.FC = () => {
                           </div>
                           {item.quantity > 1 && (
                             <span className="text-orange-600 font-semibold ml-2">×{item.quantity}</span>
-                          (Tax: £{order.tax_amount.toFixed(2)})
+                          )}
                         </div>
                       </div>
                     ))}
