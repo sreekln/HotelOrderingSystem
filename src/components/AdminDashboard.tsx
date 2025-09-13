@@ -20,7 +20,7 @@ interface DashboardStats {
   averageOrderValue: number;
 }
 
-const AdminDashboard: React.FC = () => {
+export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
     totalOrders: 0,
@@ -539,6 +539,3 @@ const AdminDashboard: React.FC = () => {
       )}
     </div>
   );
-};
-
-export default AdminDashboard;
