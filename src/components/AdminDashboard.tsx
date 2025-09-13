@@ -38,6 +38,9 @@ export default function AdminDashboard() {
     description: '',
     price: '',
     category: 'appetizer',
+    company: '',
+    tax_rate: '8.5',
+    food_category: 'Cooked',
     available: true
   });
 
@@ -102,6 +105,7 @@ export default function AdminDashboard() {
         id: editingItem?.id || `menu-${Date.now()}`,
         ...menuForm,
         price: parseFloat(menuForm.price),
+        tax_rate: parseFloat(menuForm.tax_rate),
         created_at: editingItem?.created_at || new Date().toISOString()
       };
 
@@ -125,6 +129,9 @@ export default function AdminDashboard() {
         description: '',
         price: '',
         category: 'appetizer',
+        company: '',
+        tax_rate: '8.5',
+        food_category: 'Cooked',
         available: true
       });
       fetchDashboardData();
@@ -141,6 +148,9 @@ export default function AdminDashboard() {
       description: item.description,
       price: item.price.toString(),
       category: item.category,
+      company: item.company,
+      tax_rate: item.tax_rate.toString(),
+      food_category: item.food_category,
       available: item.available
     });
     setShowMenuForm(true);
@@ -402,7 +412,7 @@ export default function AdminDashboard() {
 
             {showMenuForm && (
               <div className="p-6 border-b bg-gray-50">
-                <form onSubmit={handleMenuSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form onSubmit={handleMenuSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                     <input
@@ -415,6 +425,18 @@ export default function AdminDashboard() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                    <input
+                      type="text"
+                      required
+                      value={menuForm.company}
+                      onChange={(e) => setMenuForm(prev => ({ ...prev, company: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="Enter company name"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
                     <input
                       type="number"
@@ -423,6 +445,21 @@ export default function AdminDashboard() {
                       value={menuForm.price}
                       onChange={(e) => setMenuForm(prev => ({ ...prev, price: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      required
+                      value={menuForm.tax_rate}
+                      onChange={(e) => setMenuForm(prev => ({ ...prev, tax_rate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      placeholder="8.5"
                     />
                   </div>
 
@@ -441,6 +478,20 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="flex items-center">
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Food Category</label>
+                      <select
+                        value={menuForm.food_category}
+                        onChange={(e) => setMenuForm(prev => ({ ...prev, food_category: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="Raw">Raw</option>
+                        <option value="Cooked">Cooked</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-center">
                     <label className="flex items-center">
                       <input
                         type="checkbox"
@@ -452,7 +503,7 @@ export default function AdminDashboard() {
                     </label>
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                     <textarea
                       value={menuForm.description}
@@ -462,7 +513,7 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <div className="md:col-span-2 flex space-x-3">
+                  <div className="md:col-span-3 flex space-x-3">
                     <button
                       type="submit"
                       className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
@@ -479,6 +530,9 @@ export default function AdminDashboard() {
                           description: '',
                           price: '',
                           category: 'appetizer',
+                          company: '',
+                          tax_rate: '8.5',
+                          food_category: 'Cooked',
                           available: true
                         });
                       }}
