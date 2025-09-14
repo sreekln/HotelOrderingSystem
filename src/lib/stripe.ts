@@ -11,16 +11,13 @@ export interface CreateCheckoutSessionParams {
 
 export const createCheckoutSession = async (params: CreateCheckoutSessionParams) => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.access_token) {
-      throw new Error('No authentication token found');
-    }
+    // For mock auth, we'll simulate the token
+    const mockToken = 'mock-auth-token';
 
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': `Bearer ${mockToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(params),

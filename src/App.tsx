@@ -10,6 +10,8 @@ import Auth from './components/Auth';
 import CustomerDashboard from './components/CustomerDashboard';
 import KitchenDashboard from './components/KitchenDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import PaymentGateway from './components/PaymentGateway';
+import SuccessPage from './components/SuccessPage';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -66,7 +68,12 @@ const AppContent: React.FC = () => {
 
   return (
     <Layout>
-      {getDashboardComponent()}
+      <Routes>
+        <Route path="/" element={getDashboardComponent()} />
+        <Route path="/payment-gateway" element={<PaymentGateway />} />
+        <Route path="/success" element={<SuccessPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </Layout>
   );
 };

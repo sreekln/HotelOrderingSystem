@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateTax, calculateTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
+import { Link } from 'react-router-dom';
 
 const CustomerDashboard: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -258,6 +259,25 @@ const CustomerDashboard: React.FC = () => {
 
       {/* Cart & Orders */}
       <div className="space-y-6">
+        {/* Payment Gateway Promotion */}
+        <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200">
+          <div className="p-4">
+            <div className="flex items-center mb-2">
+              <Shield className="h-5 w-5 text-amber-600 mr-2" />
+              <h3 className="font-semibold text-amber-800">Secure Payment Gateway</h3>
+            </div>
+            <p className="text-sm text-amber-700 mb-3">
+              Enable secure payment processing for your orders with our premium payment gateway.
+            </p>
+            <Link
+              to="/payment-gateway"
+              className="inline-flex items-center px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors"
+            >
+              Learn More
+            </Link>
+          </div>
+        </div>
+
         {/* Cart */}
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4 border-b">
