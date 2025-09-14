@@ -1,6 +1,8 @@
 import React from 'react';
 import { useAuth } from '../lib/mockAuth';
+import { useSubscription } from '../hooks/useSubscription';
 import { LogOut, User, ChefHat, Settings } from 'lucide-react';
+import { getProductByPriceId } from '../stripe-config';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,6 +10,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, signOut } = useAuth();
+  const { subscription, hasActiveSubscription } = useSubscription();
 
   if (!user) {
     return <>{children}</>;
@@ -51,6 +54,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Welcome, {user.full_name}</span>
+              
+              {/* Subscription Status */}
+              {subscription && (
+                <div className="text-xs">
+                  {hasActiveSubscription() ? (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                      {getProductByPriceId(subscription.price_id || '')?.name || 'Active Plan'}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+                      No Active Plan
+                    </span>
+                  )}
+                </div>
+              )}
+              
               <button
                 onClick={signOut}
                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors"

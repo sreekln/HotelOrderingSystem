@@ -1,8 +1,10 @@
 export const stripeProducts = [
   {
-    priceId: 'price_1QSample123456789', // This will be replaced with actual Stripe price ID
-    name: 'Order Payment',
-    description: 'Payment for your hotel order',
+    id: 'prod_T33Kdtcn464nUD',
+    priceId: 'price_1S6xEARvejBl05RPmAS3zVJT',
+    name: 'Payment Gateway',
+    description: 'Secure payment processing for hotel orders',
+    price: 10.00,
     mode: 'payment' as const,
   },
 ];
@@ -12,4 +14,12 @@ export const getStripeConfig = () => {
     publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
     products: stripeProducts,
   };
+};
+
+export const getProductById = (productId: string) => {
+  return stripeProducts.find(product => product.id === productId);
+};
+
+export const getProductByPriceId = (priceId: string) => {
+  return stripeProducts.find(product => product.priceId === priceId);
 };
