@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import { mockUsers, User } from './mockData';
+import { supabase } from './supabase';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
@@ -41,6 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // In a real app, you'd verify the password here
       // For demo purposes, any password works
       
+      // Create a mock session in Supabase for Stripe integration
+      try {
+        await supabase.auth.signInWithPassword({
+          email: 'demo@hotel.com',
+          password: 'demo123456'
+        });
+      } catch (supabaseError) {
+        console.warn('Supabase auth failed, continuing with mock auth:', supabaseError);
+      }
+      
       setUser(foundUser);
       toast.success(`Welcome back, ${foundUser.full_name}!`);
     } catch (error: any) {
@@ -75,6 +86,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Add to mock users (in a real app, this would be saved to database)
       mockUsers.push(newUser);
+      
+      // Create a mock session in Supabase for Stripe integration
+      try {
+        await supabase.auth.signInWithPassword({
+          email: 'demo@hotel.com',
+          password: 'demo123456'
+        });
+      } catch (supabaseError) {
+        console.warn('Supabase auth failed, continuing with mock auth:', supabaseError);
+      }
+      
       setUser(newUser);
       
       toast.success('Account created successfully!');
@@ -88,6 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Sign out from Supabase as well
+      await supabase.auth.signOut();
       setUser(null);
       toast.success('Signed out successfully');
     } catch (error: any) {

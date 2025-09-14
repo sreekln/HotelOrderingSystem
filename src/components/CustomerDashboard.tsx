@@ -158,15 +158,19 @@ const CustomerDashboard: React.FC = () => {
     try {
       setPaymentLoading(order.id);
       
+      console.log('Creating checkout session for order:', order.id, 'Amount:', order.total_amount);
+      
       // Create a dynamic price for the order total
       const checkoutData = await createCheckoutSession({
         priceId: '', // Empty since we're using dynamic pricing
-        successUrl: `${window.location.origin}?payment=success&order=${order.id}`,
-        cancelUrl: `${window.location.origin}?payment=cancelled`,
+        successUrl: `${window.location.origin}/success?order_id=${order.id}`,
+        cancelUrl: `${window.location.origin}/?payment=cancelled`,
         mode: 'payment',
         orderId: order.id,
         amount: Math.round(order.total_amount * 100), // Convert to cents
       });
+
+      console.log('Checkout session created:', checkoutData);
 
       if (checkoutData.url) {
         window.location.href = checkoutData.url;
