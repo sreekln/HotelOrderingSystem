@@ -112,7 +112,7 @@ const CustomerDashboard: React.FC = () => {
         customer_id: user.id,
         subtotal: getSubtotal(),
         tax_amount: getTaxAmount(),
-        total_amount: getFinalTotal() + getTaxAmount(),
+        total_amount: getFinalTotal(),
         status: 'pending',
         payment_status: 'paid',
         table_number: tableNumber,
