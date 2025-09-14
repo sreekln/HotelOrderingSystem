@@ -305,12 +305,7 @@ export default function AdminDashboard() {
                   <div key={order.id} className="flex justify-between items-center py-2">
                     <div>
                       <p className="font-medium">Order #{order.id.slice(-6)}</p>
-                      <div className="text-xs text-gray-500">
-                        Tax Rate: {item.tax_rate}%
-                        <span className="ml-2">
-                          (Tax: £{((item.price * item.tax_rate) / 100).toFixed(2)})
-                        </span>
-                      </div>
+                      <p className="text-sm text-gray-500">
                         {(order as any).customer?.full_name} • {format(new Date(order.created_at), 'MMM dd, HH:mm')}
                       </p>
                     </div>
