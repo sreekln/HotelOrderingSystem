@@ -1,7 +1,10 @@
 import React from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { AuthProvider, useAuth } from './lib/mockAuth';
+import { mockOrders } from './lib/mockData';
 import Layout from './components/Layout';
 import Auth from './components/Auth';
 import CustomerDashboard from './components/CustomerDashboard';
@@ -10,6 +13,32 @@ import AdminDashboard from './components/AdminDashboard';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
+
+  useEffect(() => {
+    // Check for payment status in URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const orderId = urlParams.get('order');
+
+    if (paymentStatus === 'success' && orderId) {
+      // Update the order payment status in mock data
+      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+      if (orderIndex !== -1) {
+        mockOrders[orderIndex] = {
+          ...mockOrders[orderIndex],
+          payment_status: 'paid',
+          updated_at: new Date().toISOString()
+        };
+      }
+      toast.success('Payment successful! Your order has been paid.');
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'cancelled') {
+      toast.error('Payment was cancelled.');
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   if (loading) {
     return (

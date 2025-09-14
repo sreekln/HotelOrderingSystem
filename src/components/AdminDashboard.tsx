@@ -55,7 +55,7 @@ export default function AdminDashboard() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Calculate stats from mock data
-      const paidOrders = mockOrders.filter(o => o.status !== 'cancelled' && o.payment_status === 'paid');
+      const paidOrders = mockOrders.filter(o => o.status !== 'cancelled');
       const totalRevenue = paidOrders.reduce((sum, order) => sum + order.total_amount, 0);
       const uniqueCustomers = new Set(paidOrders.map(o => o.customer_id)).size;
       const averageOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
@@ -351,9 +351,6 @@ export default function AdminDashboard() {
                     Payment
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment Method
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -380,23 +377,16 @@ export default function AdminDashboard() {
                       £{order.total_amount.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-full text-xs font-medium text-green-600 bg-green-50">
-                        {order.payment_status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
-                        {order.payment_status === 'cash' ? (
-                          <>
-                            <CreditCard className="h-3 w-3 mr-1" />
-                            Cash
-                          </>
-                        ) : (
-                          <>
-                            <CreditCard className="h-3 w-3 mr-1" />
-                            Card
-                          </>
-                        )}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        order.payment_status === 'paid' 
+                          ? 'text-green-600 bg-green-50'
+                          : order.payment_status === 'pending'
+                          ? 'text-yellow-600 bg-yellow-50'
+                          : 'text-red-600 bg-red-50'
+                      }`}>
+                        {order.payment_status === 'pending' ? 'Payment Pending' : 
+                         order.payment_status === 'paid' ? 'Paid' : 
+                         order.payment_status === 'failed' ? 'Payment Failed' : order.payment_status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

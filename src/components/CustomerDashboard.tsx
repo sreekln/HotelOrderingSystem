@@ -118,7 +118,7 @@ const CustomerDashboard: React.FC = () => {
         tax_amount: getTaxAmount(),
         total_amount: getFinalTotal(),
         status: 'pending',
-        payment_status: 'paid',
+        payment_status: 'pending',
         table_number: tableNumber,
         special_instructions: specialInstructions,
         created_at: new Date().toISOString(),
@@ -139,7 +139,7 @@ const CustomerDashboard: React.FC = () => {
         });
       });
 
-      toast.success('Order placed successfully!');
+      toast.success('Order placed successfully! You can pay after delivery.');
       setCart([]);
       setSpecialInstructions('');
       fetchOrders();
@@ -159,7 +159,7 @@ const CustomerDashboard: React.FC = () => {
       
       // Create a dynamic price for the order total
       const checkoutData = await createCheckoutSession({
-        priceId: 'price_dynamic', // We'll handle dynamic pricing in the backend
+        priceId: '', // Empty since we're using dynamic pricing
         successUrl: `${window.location.origin}?payment=success&order=${order.id}`,
         cancelUrl: `${window.location.origin}?payment=cancelled`,
         mode: 'payment',
@@ -204,7 +204,7 @@ const CustomerDashboard: React.FC = () => {
   };
 
   const canPayForOrder = (order: Order) => {
-    return order.status === 'delivered' && order.payment_status === 'cash';
+    return order.status === 'delivered' && order.payment_status === 'pending';
   };
 
   if (loading) {
@@ -354,7 +354,7 @@ const CustomerDashboard: React.FC = () => {
                     className="w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                   >
                     <ShoppingCart className="h-4 w-4 mr-2" />
-                    Place Order (Cash Payment)
+                    Place Order (Pay After Delivery)
                   </button>
                 </div>
               </>
@@ -384,22 +384,32 @@ const CustomerDashboard: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center text-sm mb-2">
                       <span>£{order.total_amount.toFixed(2)}</span>
-                      <span className="text-gray-500">
-                        {new Date(order.created_at).toLocaleTimeString()}
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        order.payment_status === 'pending' 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : order.payment_status === 'paid'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.payment_status === 'pending' ? 'Payment Pending' : 
+                         order.payment_status === 'paid' ? 'Paid' : order.payment_status}
                       </span>
+                    </div>
+                    <div className="text-xs text-gray-500 text-right">
+                      {new Date(order.created_at).toLocaleTimeString()}
                     </div>
                     {canPayForOrder(order) && (
                       <button
                         onClick={() => handlePayment(order)}
                         disabled={paymentLoading === order.id}
-                        className="w-full mt-2 bg-green-600 text-white py-1.5 px-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm"
+                        className="w-full mt-2 bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
                       >
                         {paymentLoading === order.id ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                         ) : (
                           <CreditCard className="h-4 w-4 mr-2" />
                         )}
-                        {paymentLoading === order.id ? 'Processing...' : 'Pay Now'}
+                        {paymentLoading === order.id ? 'Processing...' : 'Pay with Stripe'}
                       </button>
                     )}
                   </div>

@@ -28,7 +28,7 @@ export interface Order {
   tax_amount: number;
   total_amount: number;
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-  payment_status: 'paid' | 'cash' | 'pending';
+  payment_status: 'pending' | 'paid' | 'failed';
   special_instructions?: string;
   table_number?: number;
   created_at: string;
@@ -285,7 +285,7 @@ export const mockOrders: Order[] = [
     tax_amount: 5.30,
     total_amount: 49.28,
     status: 'preparing',
-    payment_status: 'paid',
+    payment_status: 'pending',
     special_instructions: 'Medium rare steak, no onions',
     table_number: 12,
     created_at: '2024-01-05T18:30:00Z',
@@ -297,8 +297,8 @@ export const mockOrders: Order[] = [
     subtotal: 23.98,
     tax_amount: 1.29,
     total_amount: 25.27,
-    status: 'ready',
-    payment_status: 'paid',
+    status: 'delivered',
+    payment_status: 'pending',
     table_number: 8,
     created_at: '2024-01-05T19:15:00Z',
     updated_at: '2024-01-05T19:30:00Z'
@@ -310,7 +310,7 @@ export const mockOrders: Order[] = [
     tax_amount: 7.71,
     total_amount: 76.68,
     status: 'confirmed',
-    payment_status: 'paid',
+    payment_status: 'pending',
     special_instructions: 'Allergic to shellfish',
     table_number: 5,
     created_at: '2024-01-05T20:00:00Z',
@@ -323,7 +323,7 @@ export const mockOrders: Order[] = [
     tax_amount: 8.95,
     total_amount: 94.85,
     status: 'delivered',
-    payment_status: 'cash',
+    payment_status: 'paid',
     table_number: 15,
     created_at: '2024-01-04T19:30:00Z',
     updated_at: '2024-01-04T20:15:00Z'
@@ -335,7 +335,7 @@ export const mockOrders: Order[] = [
     tax_amount: 2.88,
     total_amount: 34.85,
     status: 'delivered',
-    payment_status: 'cash',
+    payment_status: 'pending',
     table_number: 3,
     created_at: '2024-01-05T20:30:00Z',
     updated_at: '2024-01-05T20:30:00Z'
