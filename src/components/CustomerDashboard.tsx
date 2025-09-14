@@ -90,11 +90,15 @@ const CustomerDashboard: React.FC = () => {
   };
 
   const getTaxAmount = () => {
-    return calculateTax(getSubtotal());
+    return cart.reduce((totalTax, cartItem) => {
+      const itemSubtotal = cartItem.item.price * cartItem.quantity;
+      const itemTax = itemSubtotal * (cartItem.item.tax_rate / 100);
+      return totalTax + itemTax;
+    }, 0);
   };
 
   const getFinalTotal = () => {
-    return calculateTotal(getSubtotal());
+    return getSubtotal() + getTaxAmount();
   };
 
   const createOrder = async () => {
