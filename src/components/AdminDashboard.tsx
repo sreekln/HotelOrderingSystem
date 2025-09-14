@@ -8,7 +8,8 @@ import {
   Plus,
   Edit,
   Trash2,
-  Settings
+  Settings,
+  CreditCard
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -304,7 +305,12 @@ export default function AdminDashboard() {
                   <div key={order.id} className="flex justify-between items-center py-2">
                     <div>
                       <p className="font-medium">Order #{order.id.slice(-6)}</p>
-                      <p className="text-sm text-gray-600">
+                      <div className="text-xs text-gray-500">
+                        Tax Rate: {item.tax_rate}%
+                        <span className="ml-2">
+                          (Tax: £{((item.price * item.tax_rate) / 100).toFixed(2)})
+                        </span>
+                      </div>
                         {(order as any).customer?.full_name} • {format(new Date(order.created_at), 'MMM dd, HH:mm')}
                       </p>
                     </div>
@@ -350,6 +356,9 @@ export default function AdminDashboard() {
                     Payment
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Method
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -377,7 +386,22 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 rounded-full text-xs font-medium text-green-600 bg-green-50">
-                        {order.payment_status === 'paid' ? 'Cash' : 'Paid'}
+                        {order.payment_status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-blue-600 bg-blue-50">
+                        {order.payment_status === 'cash' ? (
+                          <>
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Cash
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Card
+                          </>
+                        )}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

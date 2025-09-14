@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateTax, calculateTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { createCheckoutSession } from '../lib/stripe';
 
 const CustomerDashboard: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -11,6 +12,7 @@ const CustomerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tableNumber, setTableNumber] = useState<number>(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -145,6 +147,35 @@ const CustomerDashboard: React.FC = () => {
     }
   };
 
+  const handlePayment = async (order: Order) => {
+    if (!user) return;
+
+    try {
+      setPaymentLoading(order.id);
+      
+      // Create a dynamic price for the order total
+      const checkoutData = await createCheckoutSession({
+        priceId: 'price_dynamic', // We'll handle dynamic pricing in the backend
+        successUrl: `${window.location.origin}?payment=success&order=${order.id}`,
+        cancelUrl: `${window.location.origin}?payment=cancelled`,
+        mode: 'payment',
+        orderId: order.id,
+        amount: Math.round(order.total_amount * 100), // Convert to cents
+      });
+
+      if (checkoutData.url) {
+        window.location.href = checkoutData.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Failed to initiate payment');
+    } finally {
+      setPaymentLoading(null);
+    }
+  };
+
   const groupedMenuItems = menuItems.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
@@ -166,6 +197,10 @@ const CustomerDashboard: React.FC = () => {
       default:
         return <Clock className="h-4 w-4 text-gray-500" />;
     }
+  };
+
+  const canPayForOrder = (order: Order) => {
+    return order.status === 'delivered' && order.payment_status === 'cash';
   };
 
   if (loading) {
@@ -298,7 +333,7 @@ const CustomerDashboard: React.FC = () => {
                     <div className="text-xs text-gray-500 space-y-1">
                       {cart.map((cartItem, index) => (
                         <div key={index} className="flex justify-between">
-                          <span>{cartItem.item.name} ({cartItem.item.tax_rate}%)</span>
+                          <span>{cartItem.item.name} (Tax: {cartItem.item.tax_rate}%)</span>
                           <span>£{(cartItem.item.price * cartItem.quantity * cartItem.item.tax_rate / 100).toFixed(2)}</span>
                         </div>
                       ))}
@@ -343,12 +378,26 @@ const CustomerDashboard: React.FC = () => {
                         <span className="text-sm capitalize">{order.status}</span>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-sm mb-2">
                       <span>£{order.total_amount.toFixed(2)}</span>
                       <span className="text-gray-500">
                         {new Date(order.created_at).toLocaleTimeString()}
                       </span>
                     </div>
+                    {canPayForOrder(order) && (
+                      <button
+                        onClick={() => handlePayment(order)}
+                        disabled={paymentLoading === order.id}
+                        className="w-full mt-2 bg-green-600 text-white py-1.5 px-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm"
+                      >
+                        {paymentLoading === order.id ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        ) : (
+                          <CreditCard className="h-4 w-4 mr-2" />
+                        )}
+                        {paymentLoading === order.id ? 'Processing...' : 'Pay Now'}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
