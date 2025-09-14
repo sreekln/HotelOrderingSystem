@@ -19,9 +19,9 @@ const PaymentGateway: React.FC = () => {
       setLoading(paymentGatewayProduct.id);
       
       const checkoutData = await createCheckoutSession({
-        priceId: paymentGatewayProduct.priceId,
-        successUrl: `${window.location.origin}/success?price_id=${paymentGatewayProduct.priceId}`,
-        cancelUrl: `${window.location.origin}/payment-gateway`,
+        price_id: paymentGatewayProduct.priceId,
+        success_url: `${window.location.origin}/success?price_id=${paymentGatewayProduct.priceId}`,
+        cancel_url: `${window.location.origin}/payment-gateway`,
         mode: paymentGatewayProduct.mode,
       });
 

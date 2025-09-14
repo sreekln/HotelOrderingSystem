@@ -162,9 +162,9 @@ const CustomerDashboard: React.FC = () => {
       
       // Create a dynamic price for the order total
       const checkoutData = await createCheckoutSession({
-        priceId: '', // Empty since we're using dynamic pricing
-        successUrl: `${window.location.origin}/success?order_id=${order.id}`,
-        cancelUrl: `${window.location.origin}/?payment=cancelled`,
+        price_id: '', // Empty since we're using dynamic pricing
+        success_url: `${window.location.origin}/success?order_id=${order.id}`,
+        cancel_url: `${window.location.origin}/?payment=cancelled`,
         mode: 'payment',
         orderId: order.id,
         amount: Math.round(order.total_amount * 100), // Convert to cents
