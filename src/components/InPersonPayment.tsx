@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Smartphone, Wifi, CheckCircle, XCircle, Clock, ContactlessIcon } from 'lucide-react';
+import { CreditCard, Smartphone, Wifi, CheckCircle, XCircle, Clock, ContactIcon as ContactlessIcon } from 'lucide-react';
 import { createPaymentIntent } from '../lib/stripeInPerson';
 import toast from 'react-hot-toast';
 
