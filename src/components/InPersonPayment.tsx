@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Smartphone, Wifi, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CreditCard, Smartphone, Wifi, CheckCircle, XCircle, Clock, ContactlessIcon } from 'lucide-react';
 import { createPaymentIntent } from '../lib/stripeInPerson';
 import toast from 'react-hot-toast';
 
@@ -197,6 +197,30 @@ const InPersonPayment: React.FC<InPersonPaymentProps> = ({
               <li>• Tap contactless card or mobile device</li>
               <li>• Swipe magnetic stripe if needed</li>
             </ul>
+          </div>
+        )}
+
+        {/* Payment Methods Visual */}
+        {paymentStatus === 'waiting_for_payment' && (
+          <div className="mt-4 flex justify-center space-x-4">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-8 bg-blue-100 rounded flex items-center justify-center mb-1">
+                <CreditCard className="h-4 w-4 text-blue-600" />
+              </div>
+              <span className="text-xs text-gray-500">Card</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-8 bg-green-100 rounded flex items-center justify-center mb-1">
+                <Wifi className="h-4 w-4 text-green-600" />
+              </div>
+              <span className="text-xs text-gray-500">Tap</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-8 bg-purple-100 rounded flex items-center justify-center mb-1">
+                <Smartphone className="h-4 w-4 text-purple-600" />
+              </div>
+              <span className="text-xs text-gray-500">Mobile</span>
+            </div>
           </div>
         )}
       </div>

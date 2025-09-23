@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateTax, calculateTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield, Smartphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import { Link } from 'react-router-dom';
+import InPersonPayment from './InPersonPayment';
 
 const CustomerDashboard: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -14,6 +15,7 @@ const CustomerDashboard: React.FC = () => {
   const [tableNumber, setTableNumber] = useState<number>(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
+  const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -183,6 +185,31 @@ const CustomerDashboard: React.FC = () => {
     } finally {
       setPaymentLoading(null);
     }
+  };
+
+  const handleInPersonPayment = (order: Order) => {
+    setShowInPersonPayment(order.id);
+  };
+
+  const handleInPersonPaymentSuccess = () => {
+    if (showInPersonPayment) {
+      // Update order payment status
+      const orderIndex = mockOrders.findIndex(order => order.id === showInPersonPayment);
+      if (orderIndex !== -1) {
+        mockOrders[orderIndex] = {
+          ...mockOrders[orderIndex],
+          payment_status: 'paid',
+          updated_at: new Date().toISOString()
+        };
+      }
+      toast.success('In-person payment completed successfully!');
+      setShowInPersonPayment(null);
+      fetchOrders();
+    }
+  };
+
+  const handleInPersonPaymentCancel = () => {
+    setShowInPersonPayment(null);
   };
 
   const groupedMenuItems = menuItems.reduce((acc, item) => {
@@ -423,18 +450,28 @@ const CustomerDashboard: React.FC = () => {
                       {new Date(order.created_at).toLocaleTimeString()}
                     </div>
                     {canPayForOrder(order) && (
-                      <button
-                        onClick={() => handlePayment(order)}
-                        disabled={paymentLoading === order.id}
-                        className="w-full mt-2 bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
-                      >
-                        {paymentLoading === order.id ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <CreditCard className="h-4 w-4 mr-2" />
-                        )}
-                        {paymentLoading === order.id ? 'Processing...' : 'Pay with Stripe'}
-                      </button>
+                      <div className="mt-2 space-y-2">
+                        <button
+                          onClick={() => handlePayment(order)}
+                          disabled={paymentLoading === order.id}
+                          className="w-full bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
+                        >
+                          {paymentLoading === order.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          ) : (
+                            <CreditCard className="h-4 w-4 mr-2" />
+                          )}
+                          {paymentLoading === order.id ? 'Processing...' : 'Pay Online'}
+                        </button>
+                        
+                        <button
+                          onClick={() => handleInPersonPayment(order)}
+                          className="w-full bg-green-600 text-white py-1.5 px-3 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center text-sm font-medium"
+                        >
+                          <Smartphone className="h-4 w-4 mr-2" />
+                          Accept In-Person Payment
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -443,6 +480,16 @@ const CustomerDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* In-Person Payment Modal */}
+      {showInPersonPayment && (
+        <InPersonPayment
+          orderId={showInPersonPayment}
+          amount={orders.find(o => o.id === showInPersonPayment)?.total_amount || 0}
+          onSuccess={handleInPersonPaymentSuccess}
+          onCancel={handleInPersonPaymentCancel}
+        />
+      )}
     </div>
   );
 };
