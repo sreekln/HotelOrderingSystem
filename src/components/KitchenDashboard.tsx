@@ -362,7 +362,7 @@ const KitchenDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {order.status === 'pending' && !isEditing && (
+                      {(order.status === 'pending' || order.status === 'confirmed') && !isEditing && (
                         <button
                           onClick={() => startEditingOrder(order)}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
@@ -397,7 +397,12 @@ const KitchenDashboard: React.FC = () => {
                 <div className="p-4">
                   {isEditing && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h4 className="font-medium text-blue-900 mb-3">Edit Order Details</h4>
+                      <h4 className="font-medium text-blue-900 mb-3">
+                        Edit Order Details 
+                        <span className="ml-2 text-sm font-normal">
+                          (Status: <span className="capitalize font-medium">{order.status}</span>)
+                        </span>
+                      </h4>
                       
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
@@ -572,7 +577,7 @@ const KitchenDashboard: React.FC = () => {
                       className={`w-full py-2 px-4 rounded-md text-white text-sm font-medium transition-colors ${nextAction.color}`}
                       disabled={isEditing}
                     >
-                      {nextAction.label}
+                      {isEditing ? 'Save Changes First' : nextAction.label}
                     </button>
                   )}
                 </div>
