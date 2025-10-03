@@ -555,3 +555,4 @@ export const getCompanyByName = (name: string): Company | undefined => {
 // Helper function to get companies by category
 export const getCompaniesByCategory = (category: string): Company[] => {
   return mockCompanies.filter(company => company.category === category);
+}
