@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Order, MenuItem, mockOrders, mockUsers, mockMenuItems } from '../lib/mockData';
+import { Order, MenuItem, mockOrders, mockUsers, mockMenuItems, mockCompanies } from '../lib/mockData';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -564,9 +564,9 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600 capitalize">{item.category} • {item.food_category}</p>
                         <div className="text-xs text-gray-500">
                           <span className="font-medium">{item.company}</span>
-                          {companies.find(c => c.name === item.company) && (
+                          {mockCompanies.find(c => c.name === item.company) && (
                             <span className="ml-1">
-                              • {companies.find(c => c.name === item.company)?.category}
+                              • {mockCompanies.find(c => c.name === item.company)?.category}
                             </span>
                           )}
                         </div>
