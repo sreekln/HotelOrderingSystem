@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Order, OrderItem, MenuItem, mockOrders, mockUsers, getOrderItemsWithMenuItems } from '../lib/mockData';
-import { Clock, CheckCircle, AlertCircle, ChefHat } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, ChefHat, Edit, Save, X, Plus, Minus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -17,6 +17,16 @@ const KitchenDashboard: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'confirmed' | 'preparing' | 'ready'>('pending');
+  const [editingOrder, setEditingOrder] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    tableNumber: number;
+    specialInstructions: string;
+    items: { id: string; quantity: number }[];
+  }>({
+    tableNumber: 1,
+    specialInstructions: '',
+    items: []
+  });
 
   useEffect(() => {
     fetchOrders();
@@ -66,6 +76,71 @@ const KitchenDashboard: React.FC = () => {
       console.error('Error updating order status:', error);
       toast.error('Failed to update order status');
     }
+  };
+
+  const startEditingOrder = (order: OrderWithItems) => {
+    setEditingOrder(order.id);
+    setEditForm({
+      tableNumber: order.table_number || 1,
+      specialInstructions: order.special_instructions || '',
+      items: order.order_items.map(item => ({
+        id: item.id,
+        quantity: item.quantity
+      }))
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingOrder(null);
+    setEditForm({
+      tableNumber: 1,
+      specialInstructions: '',
+      items: []
+    });
+  };
+
+  const saveOrderChanges = async (orderId: string) => {
+    try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Update order in mock data
+      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+      if (orderIndex !== -1) {
+        mockOrders[orderIndex] = {
+          ...mockOrders[orderIndex],
+          table_number: editForm.tableNumber,
+          special_instructions: editForm.specialInstructions,
+          updated_at: new Date().toISOString()
+        };
+      }
+      
+      // Update order items quantities
+      editForm.items.forEach(editItem => {
+        const itemIndex = mockOrderItems.findIndex(item => item.id === editItem.id);
+        if (itemIndex !== -1) {
+          mockOrderItems[itemIndex].quantity = editItem.quantity;
+        }
+      });
+      
+      toast.success('Order updated successfully');
+      setEditingOrder(null);
+      fetchOrders();
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast.error('Failed to update order');
+    }
+  };
+
+  const updateItemQuantity = (itemId: string, delta: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
+          : item
+      )
+    }));
   };
 
   const filteredOrders = orders.filter(order => order.status === activeTab);
@@ -187,12 +262,28 @@ const KitchenDashboard: React.FC = () => {
                         Order #{order.id.slice(-6)}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        {order.customer.full_name} • Table {order.table_number}
+                        {order.customer.full_name}
                       </p>
+                      <div className="flex items-center mt-1">
+                        <span className="text-lg font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
+                          Table {editingOrder === order.id ? editForm.tableNumber : order.table_number}
+                        </span>
+                      </div>
                     </div>
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                      {getStatusIcon(order.status)}
-                      <span className="ml-1.5 capitalize">{order.status}</span>
+                    <div className="flex items-center space-x-2">
+                      {order.status === 'pending' && editingOrder !== order.id && (
+                        <button
+                          onClick={() => startEditingOrder(order)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          title="Edit Order"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
+                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+                        {getStatusIcon(order.status)}
+                        <span className="ml-1.5 capitalize">{order.status}</span>
+                      </div>
                     </div>
                   </div>
                   
@@ -213,6 +304,57 @@ const KitchenDashboard: React.FC = () => {
 
                 {/* Order Items */}
                 <div className="p-4">
+                  {editingOrder === order.id && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-900 mb-3">Edit Order Details</h4>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-sm font-medium text-blue-800 mb-1">
+                            Table Number
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editForm.tableNumber}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, tableNumber: parseInt(e.target.value) || 1 }))}
+                            className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium text-blue-800 mb-1">
+                          Special Instructions
+                        </label>
+                        <textarea
+                          value={editForm.specialInstructions}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, specialInstructions: e.target.value }))}
+                          rows={2}
+                          className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                          placeholder="Any special requests..."
+                        />
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => saveOrderChanges(order.id)}
+                          className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                        >
+                          <Save className="h-3 w-3 mr-1" />
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={cancelEditing}
+                          className="flex items-center px-3 py-1.5 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2 mb-4">
                     {order.order_items.map((item, index) => (
                       <div key={index} className="flex justify-between items-center">
@@ -221,8 +363,31 @@ const KitchenDashboard: React.FC = () => {
                           <div className="text-xs text-gray-500">
                             {item.menu_item.company} • {item.menu_item.food_category} • Tax: {item.menu_item.tax_rate}%
                           </div>
-                          {item.quantity > 1 && (
-                            <span className="text-orange-600 font-semibold ml-2">×{item.quantity}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {editingOrder === order.id ? (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => updateItemQuantity(item.id, -1)}
+                                className="p-1 hover:bg-gray-100 rounded"
+                                disabled={editForm.items.find(i => i.id === item.id)?.quantity === 1}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="font-semibold text-orange-600 min-w-[2rem] text-center">
+                                ×{editForm.items.find(i => i.id === item.id)?.quantity || item.quantity}
+                              </span>
+                              <button
+                                onClick={() => updateItemQuantity(item.id, 1)}
+                                className="p-1 hover:bg-gray-100 rounded"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            item.quantity > 1 && (
+                              <span className="text-orange-600 font-semibold">×{item.quantity}</span>
+                            )
                           )}
                         </div>
                       </div>
@@ -241,6 +406,7 @@ const KitchenDashboard: React.FC = () => {
                     <button
                       onClick={() => updateOrderStatus(order.id, nextAction.nextStatus)}
                       className={`w-full py-2 px-4 rounded-md text-white text-sm font-medium transition-colors ${nextAction.color}`}
+                      disabled={editingOrder === order.id}
                     >
                       {nextAction.label}
                     </button>

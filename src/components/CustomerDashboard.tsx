@@ -427,7 +427,10 @@ const CustomerDashboard: React.FC = () => {
                 {orders.slice(0, 5).map(order => (
                   <div key={order.id} className="border rounded-md p-3">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">Order #{order.id.slice(-6)}</span>
+                      <div>
+                        <span className="text-sm font-medium">Order #{order.id.slice(-6)}</span>
+                        <span className="text-xs text-gray-500 ml-2">Table {order.table_number}</span>
+                      </div>
                       <div className="flex items-center space-x-1">
                         {getStatusIcon(order.status)}
                         <span className="text-sm capitalize">{order.status}</span>
