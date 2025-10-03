@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Order, OrderItem, MenuItem, mockOrders, mockUsers, getOrderItemsWithMenuItems } from '../lib/mockData';
-import { Clock, CheckCircle, AlertCircle, ChefHat, Edit, Save, X, Plus, Minus } from 'lucide-react';
+import { Order, OrderItem, MenuItem, mockOrders, mockUsers, mockMenuItems, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTax, calculateCartTotal } from '../lib/mockData';
+import { Clock, CheckCircle, AlertCircle, ChefHat, Edit, Save, X, Plus, Minus, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -13,6 +13,15 @@ interface OrderWithItems extends Order {
   };
 }
 
+interface EditOrderItem {
+  id: string;
+  menu_item_id: string;
+  quantity: number;
+  price: number;
+  menu_item: MenuItem;
+  isNew?: boolean;
+}
+
 const KitchenDashboard: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,15 +30,19 @@ const KitchenDashboard: React.FC = () => {
   const [editForm, setEditForm] = useState<{
     tableNumber: number;
     specialInstructions: string;
-    items: { id: string; quantity: number }[];
+    items: EditOrderItem[];
   }>({
     tableNumber: 1,
     specialInstructions: '',
     items: []
   });
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [availableItems, setAvailableItems] = useState<MenuItem[]>([]);
 
   useEffect(() => {
     fetchOrders();
+    setAvailableItems(mockMenuItems.filter(item => item.available));
   }, []);
 
   const fetchOrders = async () => {
@@ -85,9 +98,15 @@ const KitchenDashboard: React.FC = () => {
       specialInstructions: order.special_instructions || '',
       items: order.order_items.map(item => ({
         id: item.id,
-        quantity: item.quantity
+        menu_item_id: item.menu_item_id,
+        quantity: item.quantity,
+        price: item.price,
+        menu_item: item.menu_item,
+        isNew: false
       }))
     });
+    setShowAddItem(false);
+    setSearchTerm('');
   };
 
   const cancelEditing = () => {
@@ -97,12 +116,25 @@ const KitchenDashboard: React.FC = () => {
       specialInstructions: '',
       items: []
     });
+    setShowAddItem(false);
+    setSearchTerm('');
+  };
+
+  const calculateOrderTotals = (items: EditOrderItem[]) => {
+    const cartItems = items.map(item => ({
+      item: item.menu_item,
+      quantity: item.quantity
+    }));
+    
+    return calculateCartTotal(cartItems);
   };
 
   const saveOrderChanges = async (orderId: string) => {
     try {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const totals = calculateOrderTotals(editForm.items);
       
       // Update order in mock data
       const orderIndex = mockOrders.findIndex(order => order.id === orderId);
@@ -111,16 +143,35 @@ const KitchenDashboard: React.FC = () => {
           ...mockOrders[orderIndex],
           table_number: editForm.tableNumber,
           special_instructions: editForm.specialInstructions,
+          subtotal: totals.subtotal,
+          tax_amount: totals.tax,
+          total_amount: totals.total,
           updated_at: new Date().toISOString()
         };
       }
       
-      // Update order items quantities
-      editForm.items.forEach(editItem => {
-        const itemIndex = mockOrderItems.findIndex(item => item.id === editItem.id);
+      // Remove old order items
+      const oldItemIds = mockOrderItems
+        .filter(item => item.order_id === orderId)
+        .map(item => item.id);
+      
+      oldItemIds.forEach(itemId => {
+        const itemIndex = mockOrderItems.findIndex(item => item.id === itemId);
         if (itemIndex !== -1) {
-          mockOrderItems[itemIndex].quantity = editItem.quantity;
+          mockOrderItems.splice(itemIndex, 1);
         }
+      });
+      
+      // Add updated order items
+      editForm.items.forEach(editItem => {
+        const newOrderItem: OrderItem = {
+          id: editItem.isNew ? `item-${Date.now()}-${editItem.menu_item_id}` : editItem.id,
+          order_id: orderId,
+          menu_item_id: editItem.menu_item_id,
+          quantity: editItem.quantity,
+          price: editItem.menu_item.price
+        };
+        mockOrderItems.push(newOrderItem);
       });
       
       toast.success('Order updated successfully');
@@ -143,7 +194,45 @@ const KitchenDashboard: React.FC = () => {
     }));
   };
 
+  const removeItem = (itemId: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== itemId)
+    }));
+    toast.success('Item removed from order');
+  };
+
+  const addItemToOrder = (menuItem: MenuItem) => {
+    const existingItem = editForm.items.find(item => item.menu_item_id === menuItem.id);
+    
+    if (existingItem) {
+      // Increase quantity if item already exists
+      updateItemQuantity(existingItem.id, 1);
+      toast.success(`Increased ${menuItem.name} quantity`);
+    } else {
+      // Add new item
+      const newItem: EditOrderItem = {
+        id: `new-${Date.now()}-${menuItem.id}`,
+        menu_item_id: menuItem.id,
+        quantity: 1,
+        price: menuItem.price,
+        menu_item: menuItem,
+        isNew: true
+      };
+      
+      setEditForm(prev => ({
+        ...prev,
+        items: [...prev.items, newItem]
+      }));
+      toast.success(`${menuItem.name} added to order`);
+    }
+  };
+
   const filteredOrders = orders.filter(order => order.status === activeTab);
+  const filteredMenuItems = availableItems.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -251,6 +340,8 @@ const KitchenDashboard: React.FC = () => {
         ) : (
           filteredOrders.map((order) => {
             const nextAction = getNextAction(order.status);
+            const isEditing = editingOrder === order.id;
+            const orderTotals = isEditing ? calculateOrderTotals(editForm.items) : null;
             
             return (
               <div key={order.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
@@ -266,12 +357,12 @@ const KitchenDashboard: React.FC = () => {
                       </p>
                       <div className="flex items-center mt-1">
                         <span className="text-lg font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
-                          Table {editingOrder === order.id ? editForm.tableNumber : order.table_number}
+                          Table {isEditing ? editForm.tableNumber : order.table_number}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      {order.status === 'pending' && editingOrder !== order.id && (
+                      {order.status === 'pending' && !isEditing && (
                         <button
                           onClick={() => startEditingOrder(order)}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
@@ -293,10 +384,10 @@ const KitchenDashboard: React.FC = () => {
                     </span>
                     <div className="text-right">
                       <div className="font-semibold text-gray-900">
-                        ${order.total_amount.toFixed(2)}
+                        £{(isEditing ? orderTotals?.total : order.total_amount)?.toFixed(2)}
                       </div>
                       <div className="text-xs text-gray-500">
-                        (Tax: ${order.tax_amount.toFixed(2)})
+                        (Tax: £{(isEditing ? orderTotals?.tax : order.tax_amount)?.toFixed(2)})
                       </div>
                     </div>
                   </div>
@@ -304,7 +395,7 @@ const KitchenDashboard: React.FC = () => {
 
                 {/* Order Items */}
                 <div className="p-4">
-                  {editingOrder === order.id && (
+                  {isEditing && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <h4 className="font-medium text-blue-900 mb-3">Edit Order Details</h4>
                       
@@ -335,6 +426,51 @@ const KitchenDashboard: React.FC = () => {
                           placeholder="Any special requests..."
                         />
                       </div>
+
+                      {/* Add Item Section */}
+                      <div className="mb-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-sm font-medium text-blue-800">
+                            Order Items
+                          </label>
+                          <button
+                            onClick={() => setShowAddItem(!showAddItem)}
+                            className="flex items-center px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Item
+                          </button>
+                        </div>
+
+                        {showAddItem && (
+                          <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
+                            <div className="mb-2">
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-400" />
+                                <input
+                                  type="text"
+                                  placeholder="Search menu items..."
+                                  value={searchTerm}
+                                  onChange={(e) => setSearchTerm(e.target.value)}
+                                  className="w-full pl-7 pr-2 py-1 border border-green-300 rounded text-xs"
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-32 overflow-y-auto space-y-1">
+                              {filteredMenuItems.slice(0, 5).map(item => (
+                                <button
+                                  key={item.id}
+                                  onClick={() => addItemToOrder(item)}
+                                  className="w-full text-left px-2 py-1 hover:bg-green-100 rounded text-xs flex justify-between items-center"
+                                >
+                                  <span>{item.name}</span>
+                                  <span className="text-green-600 font-medium">£{item.price.toFixed(2)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="flex space-x-2">
                         <button
@@ -356,32 +492,42 @@ const KitchenDashboard: React.FC = () => {
                   )}
 
                   <div className="space-y-2 mb-4">
-                    {order.order_items.map((item, index) => (
+                    {(isEditing ? editForm.items : order.order_items).map((item, index) => (
                       <div key={index} className="flex justify-between items-center">
                         <div className="flex-1">
                           <span className="font-medium text-sm">{item.menu_item.name}</span>
                           <div className="text-xs text-gray-500">
                             {item.menu_item.company} • {item.menu_item.food_category} • Tax: {item.menu_item.tax_rate}%
                           </div>
+                          <div className="text-xs text-gray-600">
+                            £{item.menu_item.price.toFixed(2)} each
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          {editingOrder === order.id ? (
+                          {isEditing ? (
                             <div className="flex items-center space-x-1">
                               <button
                                 onClick={() => updateItemQuantity(item.id, -1)}
                                 className="p-1 hover:bg-gray-100 rounded"
-                                disabled={editForm.items.find(i => i.id === item.id)?.quantity === 1}
+                                disabled={item.quantity === 1}
                               >
                                 <Minus className="h-3 w-3" />
                               </button>
                               <span className="font-semibold text-orange-600 min-w-[2rem] text-center">
-                                ×{editForm.items.find(i => i.id === item.id)?.quantity || item.quantity}
+                                ×{item.quantity}
                               </span>
                               <button
                                 onClick={() => updateItemQuantity(item.id, 1)}
                                 className="p-1 hover:bg-gray-100 rounded"
                               >
                                 <Plus className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => removeItem(item.id)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded ml-2"
+                                title="Remove item"
+                              >
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                           ) : (
@@ -394,10 +540,28 @@ const KitchenDashboard: React.FC = () => {
                     ))}
                   </div>
 
+                  {/* Order Totals in Edit Mode */}
+                  {isEditing && orderTotals && (
+                    <div className="mb-4 p-2 bg-gray-50 border border-gray-200 rounded text-sm">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>£{orderTotals.subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax:</span>
+                        <span>£{orderTotals.tax.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t pt-1 mt-1">
+                        <span>Total:</span>
+                        <span>£{orderTotals.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {order.special_instructions && (
                     <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded">
                       <p className="text-sm text-yellow-800">
-                        <strong>Special Instructions:</strong> {order.special_instructions}
+                        <strong>Special Instructions:</strong> {isEditing ? editForm.specialInstructions : order.special_instructions}
                       </p>
                     </div>
                   )}
@@ -406,7 +570,7 @@ const KitchenDashboard: React.FC = () => {
                     <button
                       onClick={() => updateOrderStatus(order.id, nextAction.nextStatus)}
                       className={`w-full py-2 px-4 rounded-md text-white text-sm font-medium transition-colors ${nextAction.color}`}
-                      disabled={editingOrder === order.id}
+                      disabled={isEditing}
                     >
                       {nextAction.label}
                     </button>
