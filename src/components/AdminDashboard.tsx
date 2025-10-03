@@ -562,7 +562,14 @@ export default function AdminDashboard() {
                       <div>
                         <h4 className="font-semibold">{item.name}</h4>
                         <p className="text-sm text-gray-600 capitalize">{item.category} • {item.food_category}</p>
-                        <p className="text-xs text-gray-500">{item.company}</p>
+                        <div className="text-xs text-gray-500">
+                          <span className="font-medium">{item.company}</span>
+                          {companies.find(c => c.name === item.company) && (
+                            <span className="ml-1">
+                              • {companies.find(c => c.name === item.company)?.category}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex space-x-1">
                         <button

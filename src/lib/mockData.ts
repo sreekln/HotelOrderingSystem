@@ -413,3 +413,145 @@ export const getOrdersWithDetails = () => {
     order_items: getOrderItemsWithMenuItems(order.id)
   }));
 };
+
+// Sample Companies Data
+export interface Company {
+  id: string;
+  name: string;
+  category: string;
+  contact_email?: string;
+  phone?: string;
+  created_at: string;
+}
+
+export const mockCompanies: Company[] = [
+  {
+    id: 'comp-1',
+    name: 'Fresh Garden Co.',
+    category: 'Produce & Salads',
+    contact_email: 'orders@freshgarden.com',
+    phone: '+44 20 7123 4567',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-2',
+    name: 'Wing Masters Inc.',
+    category: 'Poultry & Wings',
+    contact_email: 'sales@wingmasters.com',
+    phone: '+44 20 7234 5678',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-3',
+    name: 'Gourmet Delights Ltd.',
+    category: 'Specialty Foods',
+    contact_email: 'info@gourmetdelights.co.uk',
+    phone: '+44 20 7345 6789',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-4',
+    name: 'Ocean Fresh Seafood',
+    category: 'Seafood & Fish',
+    contact_email: 'orders@oceanfresh.com',
+    phone: '+44 20 7456 7890',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-5',
+    name: 'Premium Meats Co.',
+    category: 'Meat & Poultry',
+    contact_email: 'sales@premiummeats.co.uk',
+    phone: '+44 20 7567 8901',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-6',
+    name: 'Coastal Cuisine Ltd.',
+    category: 'Seafood & Specialty',
+    contact_email: 'orders@coastalcuisine.com',
+    phone: '+44 20 7678 9012',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-7',
+    name: 'Artisan Pizza Works',
+    category: 'Italian & Pizza',
+    contact_email: 'info@artisanpizza.co.uk',
+    phone: '+44 20 7789 0123',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-8',
+    name: 'Sweet Dreams Bakery',
+    category: 'Desserts & Pastries',
+    contact_email: 'orders@sweetdreams.com',
+    phone: '+44 20 7890 1234',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-9',
+    name: 'Italian Delicacies Inc.',
+    category: 'Italian Specialties',
+    contact_email: 'sales@italiandelicacies.com',
+    phone: '+44 20 7901 2345',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-10',
+    name: 'French Pastry House',
+    category: 'French Desserts',
+    contact_email: 'orders@frenchpastry.co.uk',
+    phone: '+44 20 7012 3456',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-11',
+    name: 'Vineyard Select',
+    category: 'Wine & Spirits',
+    contact_email: 'sales@vineyardselect.com',
+    phone: '+44 20 7123 4567',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-12',
+    name: 'Local Brew Co.',
+    category: 'Craft Beer',
+    contact_email: 'orders@localbrew.co.uk',
+    phone: '+44 20 7234 5678',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-13',
+    name: 'Citrus Fresh Ltd.',
+    category: 'Fresh Juices',
+    contact_email: 'info@citrusfresh.com',
+    phone: '+44 20 7345 6789',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-14',
+    name: 'Roast Masters Coffee',
+    category: 'Coffee & Beverages',
+    contact_email: 'orders@roastmasters.co.uk',
+    phone: '+44 20 7456 7890',
+    created_at: '2024-01-01T10:00:00Z'
+  },
+  {
+    id: 'comp-15',
+    name: 'Organic Farms Direct',
+    category: 'Organic Produce',
+    contact_email: 'sales@organicfarms.com',
+    phone: '+44 20 7567 8901',
+    created_at: '2024-01-01T10:00:00Z'
+  }
+];
+
+// Helper function to get company by name
+export const getCompanyByName = (name: string): Company | undefined => {
+  return mockCompanies.find(company => company.name === name);
+};
+
+// Helper function to get companies by category
+export const getCompaniesByCategory = (category: string): Company[] => {
+  return mockCompanies.filter(company => company.category === category);
