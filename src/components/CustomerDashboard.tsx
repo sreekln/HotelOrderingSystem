@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, Edit, Save, X, Search, User, CreditCard, DollarSign, Shield } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard as Edit, Save, X, Search, User, CreditCard, DollarSign, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import { Link } from 'react-router-dom';
