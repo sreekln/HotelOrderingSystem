@@ -47,9 +47,9 @@ export interface OrderItem {
 // Mock Users
 export const mockUsers: User[] = [
   {
-    id: 'customer-1',
-    email: 'customer@hotel.com',
-    role: 'customer',
+    id: 'server-1',
+    email: 'server@hotel.com',
+    role: 'server',
     full_name: 'John Smith',
     created_at: '2024-01-01T10:00:00Z'
   },
@@ -280,7 +280,7 @@ export const calculateCartTotal = (cartItems: { item: MenuItem; quantity: number
 export const mockOrders: Order[] = [
   {
     id: 'order-1',
-    customer_id: 'customer-1',
+    customer_id: 'server-customer',
     subtotal: 43.98,
     tax_amount: 5.30,
     total_amount: 49.28,
@@ -293,7 +293,7 @@ export const mockOrders: Order[] = [
   },
   {
     id: 'order-2',
-    customer_id: 'customer-1',
+    customer_id: 'server-customer',
     subtotal: 23.98,
     tax_amount: 1.29,
     total_amount: 25.27,
@@ -305,7 +305,7 @@ export const mockOrders: Order[] = [
   },
   {
     id: 'order-3',
-    customer_id: 'customer-1',
+    customer_id: 'server-customer',
     subtotal: 68.97,
     tax_amount: 7.71,
     total_amount: 76.68,
@@ -318,7 +318,7 @@ export const mockOrders: Order[] = [
   },
   {
     id: 'order-4',
-    customer_id: 'customer-1',
+    customer_id: 'server-customer',
     subtotal: 85.90,
     tax_amount: 8.95,
     total_amount: 94.85,
@@ -330,7 +330,7 @@ export const mockOrders: Order[] = [
   },
   {
     id: 'order-5',
-    customer_id: 'customer-1',
+    customer_id: 'server-customer',
     subtotal: 31.97,
     tax_amount: 2.88,
     total_amount: 34.85,

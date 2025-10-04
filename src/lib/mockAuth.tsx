@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `user-${Date.now()}`,
         email,
         full_name: fullName,
-        role: role as 'customer' | 'kitchen' | 'admin',
+        role: role as 'server' | 'kitchen' | 'admin',
         created_at: new Date().toISOString()
       };
       

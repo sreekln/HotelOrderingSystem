@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from './lib/mockAuth';
 import { mockOrders } from './lib/mockData';
 import Layout from './components/Layout';
 import Auth from './components/Auth';
-import CustomerDashboard from './components/CustomerDashboard';
+import ServerDashboard from './components/CustomerDashboard';
 import KitchenDashboard from './components/KitchenDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import PaymentGateway from './components/PaymentGateway';
@@ -60,9 +60,9 @@ const AppContent: React.FC = () => {
         return <KitchenDashboard />;
       case 'admin':
         return <AdminDashboard />;
-      case 'customer':
+      case 'server':
       default:
-        return <CustomerDashboard />;
+        return <ServerDashboard />;
     }
   };
 

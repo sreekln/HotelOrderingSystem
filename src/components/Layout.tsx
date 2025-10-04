@@ -33,6 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         return 'text-orange-600 bg-orange-50';
       case 'admin':
         return 'text-purple-600 bg-purple-50';
+      case 'server':
       default:
         return 'text-blue-600 bg-blue-50';
     }
