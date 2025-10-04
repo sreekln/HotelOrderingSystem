@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem, Order, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateTax, calculateTotal } from '../lib/mockData';
+import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateTax, calculateTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield, Smartphone } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield, Smartphone, Edit, Save, X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import { Link } from 'react-router-dom';
@@ -16,6 +16,18 @@ const CustomerDashboard: React.FC = () => {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
+  const [editingOrder, setEditingOrder] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    tableNumber: number;
+    specialInstructions: string;
+    items: (OrderItem & { menu_item: MenuItem; isNew?: boolean })[];
+  }>({
+    tableNumber: 1,
+    specialInstructions: '',
+    items: []
+  });
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
 
   useEffect(() => {
@@ -102,6 +114,27 @@ const CustomerDashboard: React.FC = () => {
 
   const getFinalTotal = () => {
     return getSubtotal() + getTaxAmount();
+  };
+
+  const calculateEditOrderTotals = (items: (OrderItem & { menu_item: MenuItem })[]) => {
+    const cartItems = items.map(item => ({
+      item: item.menu_item,
+      quantity: item.quantity
+    }));
+    
+    const subtotal = cartItems.reduce((sum, cartItem) => sum + (cartItem.item.price * cartItem.quantity), 0);
+    const tax = cartItems.reduce((totalTax, cartItem) => {
+      const itemSubtotal = cartItem.item.price * cartItem.quantity;
+      const itemTax = itemSubtotal * (cartItem.item.tax_rate / 100);
+      return totalTax + itemTax;
+    }, 0);
+    const total = subtotal + tax;
+    
+    return {
+      subtotal: Math.round(subtotal * 100) / 100,
+      tax: Math.round(tax * 100) / 100,
+      total: Math.round(total * 100) / 100
+    };
   };
 
   const createOrder = async () => {
@@ -212,6 +245,131 @@ const CustomerDashboard: React.FC = () => {
     setShowInPersonPayment(null);
   };
 
+  const startEditingOrder = (order: Order) => {
+    const orderItems = getOrderItemsWithMenuItems(order.id);
+    setEditingOrder(order.id);
+    setEditForm({
+      tableNumber: order.table_number || 1,
+      specialInstructions: order.special_instructions || '',
+      items: orderItems
+    });
+    setShowAddItem(false);
+    setSearchTerm('');
+  };
+
+  const cancelEditing = () => {
+    setEditingOrder(null);
+    setEditForm({
+      tableNumber: 1,
+      specialInstructions: '',
+      items: []
+    });
+    setShowAddItem(false);
+    setSearchTerm('');
+  };
+
+  const updateEditItemQuantity = (itemId: string, delta: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      items: prev.items.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
+          : item
+      )
+    }));
+  };
+
+  const removeEditItem = (itemId: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== itemId)
+    }));
+    toast.success('Item removed from order');
+  };
+
+  const addItemToEditOrder = (menuItem: MenuItem) => {
+    const existingItem = editForm.items.find(item => item.menu_item_id === menuItem.id);
+    
+    if (existingItem) {
+      updateEditItemQuantity(existingItem.id, 1);
+      toast.success(`Increased ${menuItem.name} quantity`);
+    } else {
+      const newItem = {
+        id: `new-${Date.now()}-${menuItem.id}`,
+        order_id: editingOrder!,
+        menu_item_id: menuItem.id,
+        quantity: 1,
+        price: menuItem.price,
+        menu_item: menuItem,
+        isNew: true
+      };
+      
+      setEditForm(prev => ({
+        ...prev,
+        items: [...prev.items, newItem]
+      }));
+      toast.success(`${menuItem.name} added to order`);
+    }
+  };
+
+  const saveOrderChanges = async (orderId: string) => {
+    try {
+      setLoading(true);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const totals = calculateEditOrderTotals(editForm.items);
+      
+      // Update order in mock data
+      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+      if (orderIndex !== -1) {
+        mockOrders[orderIndex] = {
+          ...mockOrders[orderIndex],
+          table_number: editForm.tableNumber,
+          special_instructions: editForm.specialInstructions,
+          subtotal: totals.subtotal,
+          tax_amount: totals.tax,
+          total_amount: totals.total,
+          updated_at: new Date().toISOString()
+        };
+      }
+      
+      // Remove old order items
+      const oldItemIds = mockOrderItems
+        .filter(item => item.order_id === orderId)
+        .map(item => item.id);
+      
+      oldItemIds.forEach(itemId => {
+        const itemIndex = mockOrderItems.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+          mockOrderItems.splice(itemIndex, 1);
+        }
+      });
+      
+      // Add updated order items
+      editForm.items.forEach(editItem => {
+        const newOrderItem: OrderItem = {
+          id: editItem.isNew ? `item-${Date.now()}-${editItem.menu_item_id}` : editItem.id,
+          order_id: orderId,
+          menu_item_id: editItem.menu_item_id,
+          quantity: editItem.quantity,
+          price: editItem.menu_item.price
+        };
+        mockOrderItems.push(newOrderItem);
+      });
+      
+      toast.success('Order updated successfully');
+      setEditingOrder(null);
+      fetchOrders();
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast.error('Failed to update order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const groupedMenuItems = menuItems.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
@@ -238,6 +396,15 @@ const CustomerDashboard: React.FC = () => {
   const canPayForOrder = (order: Order) => {
     return order.status === 'delivered' && order.payment_status === 'pending';
   };
+
+  const canEditOrder = (order: Order) => {
+    return user?.role === 'customer' || (user?.role === 'server' && ['pending', 'confirmed'].includes(order.status));
+  };
+
+  const filteredMenuItems = menuItems.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
