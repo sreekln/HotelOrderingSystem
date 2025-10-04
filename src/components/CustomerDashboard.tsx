@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard as Edit, Save, X, Search, User, CreditCard, DollarSign, Shield } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, Edit, Save, X, Search, User, CreditCard, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
-import { Link } from 'react-router-dom';
 import InPersonPayment from './InPersonPayment';
 
 const CustomerDashboard: React.FC = () => {
@@ -26,6 +25,7 @@ const CustomerDashboard: React.FC = () => {
   });
   const [showAddItem, setShowAddItem] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const { user } = useAuth();
@@ -595,7 +595,7 @@ const CustomerDashboard: React.FC = () => {
         {/* Recent Orders */}
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4 border-b">
-            <h3 className="font-semibold text-gray-900">Recent Orders</h3>
+            <h3 className="font-semibold text-gray-900">Orders by Table</h3>
           </div>
           
           <div className="p-4">
@@ -604,17 +604,204 @@ const CustomerDashboard: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {orders.slice(0, 5).map(order => (
-                  <div key={order.id} className="border rounded-md p-3">
+                  <div key={order.id} className={`border rounded-md p-3 ${
+                    editingOrder === order.id ? 'border-blue-300 bg-blue-50' : ''
+                  }`}>
+                    {editingOrder === order.id ? (
+                      // Edit Mode
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-medium text-blue-900">
+                            Edit Order #{order.id.slice(-6)}
+                          </h4>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => saveOrderChanges(order.id)}
+                              disabled={loading}
+                              className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+                            >
+                              <Save className="h-3 w-3 mr-1" />
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              className="flex items-center px-3 py-1.5 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-blue-800 mb-1">
+                              Table Number
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={editForm.tableNumber}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, tableNumber: parseInt(e.target.value) || 1 }))}
+                              className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-blue-800 mb-1">
+                            Special Instructions
+                          </label>
+                          <textarea
+                            value={editForm.specialInstructions}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, specialInstructions: e.target.value }))}
+                            rows={2}
+                            className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                            placeholder="Any special requests..."
+                          />
+                        </div>
+
+                        {/* Order Items */}
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="block text-sm font-medium text-blue-800">
+                              Order Items
+                            </label>
+                            <button
+                              onClick={() => setShowAddItem(!showAddItem)}
+                              className="flex items-center px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Item
+                            </button>
+                          </div>
+
+                          {showAddItem && (
+                            <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
+                              <div className="mb-2">
+                                <div className="relative">
+                                  <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-400" />
+                                  <input
+                                    type="text"
+                                    placeholder="Search menu items..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-7 pr-2 py-1 border border-green-300 rounded text-xs"
+                                  />
+                                </div>
+                              </div>
+                              <div className="max-h-32 overflow-y-auto space-y-1">
+                                {filteredMenuItems.slice(0, 5).map(item => (
+                                  <button
+                                    key={item.id}
+                                    onClick={() => addItemToEditOrder(item)}
+                                    className="w-full text-left px-2 py-1 hover:bg-green-100 rounded text-xs flex justify-between items-center"
+                                  >
+                                    <span>{item.name}</span>
+                                    <span className="text-green-600 font-medium">£{item.price.toFixed(2)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="space-y-2">
+                            {editForm.items.map((item, index) => (
+                              <div key={index} className="flex justify-between items-center p-2 bg-white border rounded">
+                                <div className="flex-1">
+                                  <span className="font-medium text-sm">{item.item.name}</span>
+                                  <div className="text-xs text-gray-500">
+                                    £{item.item.price.toFixed(2)} each
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <button
+                                    onClick={() => updateEditItemQuantity(item.item.id, -1)}
+                                    className="p-1 hover:bg-gray-100 rounded"
+                                    disabled={item.quantity === 1}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </button>
+                                  <span className="font-semibold text-blue-600 min-w-[2rem] text-center">
+                                    ×{item.quantity}
+                                  </span>
+                                  <button
+                                    onClick={() => updateEditItemQuantity(item.item.id, 1)}
+                                    className="p-1 hover:bg-gray-100 rounded"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => removeEditItem(item.item.id)}
+                                    className="p-1 text-red-600 hover:bg-red-50 rounded ml-2"
+                                    title="Remove item"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Order Totals */}
+                          {(() => {
+                            const editTotals = calculateCartTotal(editForm.items);
+                            return (
+                              <div className="mt-3 p-2 bg-gray-50 border border-gray-200 rounded text-sm">
+                                <div className="flex justify-between">
+                                  <span>Subtotal:</span>
+                                  <span>£{editTotals.subtotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Tax:</span>
+                                  <span>£{editTotals.tax.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between font-bold border-t pt-1 mt-1">
+                                  <span>Total:</span>
+                                  <span>£{editTotals.total.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ) : (
+                      // View Mode
+                      <>
                     <div className="flex justify-between items-center mb-2">
                       <div>
                         <span className="text-sm font-medium">Order #{order.id.slice(-6)}</span>
                         <span className="text-xs text-gray-500 ml-2">Table {order.table_number}</span>
+                            <div className="text-xs text-gray-500">
+                              Customer: {user?.full_name}
+                            </div>
                       </div>
                       <div className="flex items-center space-x-1">
                         {getStatusIcon(order.status)}
                         <span className="text-sm capitalize">{order.status}</span>
                       </div>
                     </div>
+
+                        {/* Order Items Display */}
+                        <div className="mb-2">
+                          <div className="text-xs text-gray-600 space-y-1">
+                            {getOrderItemsWithMenuItems(order.id).map((item, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span>{item.menu_item.name} ×{item.quantity}</span>
+                                <span>£{(item.price * item.quantity).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {order.special_instructions && (
+                          <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                            <p className="text-xs text-yellow-800">
+                              <strong>Instructions:</strong> {order.special_instructions}
+                            </p>
+                          </div>
+                        )}
+
                     <div className="flex justify-between items-center text-sm mb-2">
                       <span>£{order.total_amount.toFixed(2)}</span>
                       <span className={`text-xs px-2 py-1 rounded-full ${
@@ -631,29 +818,35 @@ const CustomerDashboard: React.FC = () => {
                     <div className="text-xs text-gray-500 text-right">
                       {new Date(order.created_at).toLocaleTimeString()}
                     </div>
-                    {canPayForOrder(order) && (
-                      <div className="mt-2 space-y-2">
-                        <button
-                          onClick={() => handlePayment(order)}
-                          disabled={paymentLoading === order.id}
-                          className="w-full bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
-                        >
-                          {paymentLoading === order.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <CreditCard className="h-4 w-4 mr-2" />
+
+                        {/* Action Buttons */}
+                        <div className="mt-2 space-y-2">
+                          {canEditOrder(order) && (
+                            <button
+                              onClick={() => startEditingOrder(order)}
+                              className="w-full bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center text-sm font-medium"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Order
+                            </button>
                           )}
-                          {paymentLoading === order.id ? 'Processing...' : 'Pay Online'}
-                        </button>
-                        
-                        <button
-                          onClick={() => handleInPersonPayment(order)}
-                          className="w-full bg-green-600 text-white py-1.5 px-3 rounded-md hover:bg-green-700 transition-colors flex items-center justify-center text-sm font-medium"
-                        >
-                          <Smartphone className="h-4 w-4 mr-2" />
-                          Accept In-Person Payment
-                        </button>
-                      </div>
+
+                          {canCloseOrder(order) && (
+                            <button
+                              onClick={() => handleCloseOrder(order)}
+                              disabled={paymentLoading === order.id}
+                              className="w-full bg-green-600 text-white py-1.5 px-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
+                            >
+                              {paymentLoading === order.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              ) : (
+                                <DollarSign className="h-4 w-4 mr-2" />
+                              )}
+                              {paymentLoading === order.id ? 'Processing...' : 'Close & Pay'}
+                            </button>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 ))}
@@ -662,16 +855,6 @@ const CustomerDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* In-Person Payment Modal */}
-      {showInPersonPayment && (
-        <InPersonPayment
-          orderId={showInPersonPayment}
-          amount={orders.find(o => o.id === showInPersonPayment)?.total_amount || 0}
-          onSuccess={handleInPersonPaymentSuccess}
-          onCancel={handleInPersonPaymentCancel}
-        />
-      )}
     </div>
   );
 };
