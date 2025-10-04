@@ -26,7 +26,6 @@ const CustomerDashboard: React.FC = () => {
   const [showAddItem, setShowAddItem] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
-  const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const { user } = useAuth();
 
