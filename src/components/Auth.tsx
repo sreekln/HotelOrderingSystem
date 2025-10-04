@@ -9,7 +9,7 @@ const Auth: React.FC = () => {
     email: '',
     password: '',
     fullName: '',
-    role: 'customer',
+    role: 'server',
   });
   const [loading, setLoading] = useState(false);
   
@@ -131,7 +131,7 @@ const Auth: React.FC = () => {
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="customer">Customer</option>
+                  <option value="server">Server</option>
                   <option value="kitchen">Kitchen Staff</option>
                   <option value="admin">Administrator</option>
                 </select>
