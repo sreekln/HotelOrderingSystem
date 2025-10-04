@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateTax, calculateTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield, Smartphone, Edit, Save, X, Search } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Shield, Smartphone, CreditCard as Edit, Save, X, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import { Link } from 'react-router-dom';
@@ -16,18 +16,6 @@ const CustomerDashboard: React.FC = () => {
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
-  const [editingOrder, setEditingOrder] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{
-    tableNumber: number;
-    specialInstructions: string;
-    items: (OrderItem & { menu_item: MenuItem; isNew?: boolean })[];
-  }>({
-    tableNumber: 1,
-    specialInstructions: '',
-    items: []
-  });
-  const [showAddItem, setShowAddItem] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
 
   useEffect(() => {
@@ -114,27 +102,6 @@ const CustomerDashboard: React.FC = () => {
 
   const getFinalTotal = () => {
     return getSubtotal() + getTaxAmount();
-  };
-
-  const calculateEditOrderTotals = (items: (OrderItem & { menu_item: MenuItem })[]) => {
-    const cartItems = items.map(item => ({
-      item: item.menu_item,
-      quantity: item.quantity
-    }));
-    
-    const subtotal = cartItems.reduce((sum, cartItem) => sum + (cartItem.item.price * cartItem.quantity), 0);
-    const tax = cartItems.reduce((totalTax, cartItem) => {
-      const itemSubtotal = cartItem.item.price * cartItem.quantity;
-      const itemTax = itemSubtotal * (cartItem.item.tax_rate / 100);
-      return totalTax + itemTax;
-    }, 0);
-    const total = subtotal + tax;
-    
-    return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      tax: Math.round(tax * 100) / 100,
-      total: Math.round(total * 100) / 100
-    };
   };
 
   const createOrder = async () => {
@@ -245,131 +212,6 @@ const CustomerDashboard: React.FC = () => {
     setShowInPersonPayment(null);
   };
 
-  const startEditingOrder = (order: Order) => {
-    const orderItems = getOrderItemsWithMenuItems(order.id);
-    setEditingOrder(order.id);
-    setEditForm({
-      tableNumber: order.table_number || 1,
-      specialInstructions: order.special_instructions || '',
-      items: orderItems
-    });
-    setShowAddItem(false);
-    setSearchTerm('');
-  };
-
-  const cancelEditing = () => {
-    setEditingOrder(null);
-    setEditForm({
-      tableNumber: 1,
-      specialInstructions: '',
-      items: []
-    });
-    setShowAddItem(false);
-    setSearchTerm('');
-  };
-
-  const updateEditItemQuantity = (itemId: string, delta: number) => {
-    setEditForm(prev => ({
-      ...prev,
-      items: prev.items.map(item => 
-        item.id === itemId 
-          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-          : item
-      )
-    }));
-  };
-
-  const removeEditItem = (itemId: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      items: prev.items.filter(item => item.id !== itemId)
-    }));
-    toast.success('Item removed from order');
-  };
-
-  const addItemToEditOrder = (menuItem: MenuItem) => {
-    const existingItem = editForm.items.find(item => item.menu_item_id === menuItem.id);
-    
-    if (existingItem) {
-      updateEditItemQuantity(existingItem.id, 1);
-      toast.success(`Increased ${menuItem.name} quantity`);
-    } else {
-      const newItem = {
-        id: `new-${Date.now()}-${menuItem.id}`,
-        order_id: editingOrder!,
-        menu_item_id: menuItem.id,
-        quantity: 1,
-        price: menuItem.price,
-        menu_item: menuItem,
-        isNew: true
-      };
-      
-      setEditForm(prev => ({
-        ...prev,
-        items: [...prev.items, newItem]
-      }));
-      toast.success(`${menuItem.name} added to order`);
-    }
-  };
-
-  const saveOrderChanges = async (orderId: string) => {
-    try {
-      setLoading(true);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const totals = calculateEditOrderTotals(editForm.items);
-      
-      // Update order in mock data
-      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex] = {
-          ...mockOrders[orderIndex],
-          table_number: editForm.tableNumber,
-          special_instructions: editForm.specialInstructions,
-          subtotal: totals.subtotal,
-          tax_amount: totals.tax,
-          total_amount: totals.total,
-          updated_at: new Date().toISOString()
-        };
-      }
-      
-      // Remove old order items
-      const oldItemIds = mockOrderItems
-        .filter(item => item.order_id === orderId)
-        .map(item => item.id);
-      
-      oldItemIds.forEach(itemId => {
-        const itemIndex = mockOrderItems.findIndex(item => item.id === itemId);
-        if (itemIndex !== -1) {
-          mockOrderItems.splice(itemIndex, 1);
-        }
-      });
-      
-      // Add updated order items
-      editForm.items.forEach(editItem => {
-        const newOrderItem: OrderItem = {
-          id: editItem.isNew ? `item-${Date.now()}-${editItem.menu_item_id}` : editItem.id,
-          order_id: orderId,
-          menu_item_id: editItem.menu_item_id,
-          quantity: editItem.quantity,
-          price: editItem.menu_item.price
-        };
-        mockOrderItems.push(newOrderItem);
-      });
-      
-      toast.success('Order updated successfully');
-      setEditingOrder(null);
-      fetchOrders();
-    } catch (error) {
-      console.error('Error updating order:', error);
-      toast.error('Failed to update order');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const groupedMenuItems = menuItems.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
@@ -396,15 +238,6 @@ const CustomerDashboard: React.FC = () => {
   const canPayForOrder = (order: Order) => {
     return order.status === 'delivered' && order.payment_status === 'pending';
   };
-
-  const canEditOrder = (order: Order) => {
-    return user?.role === 'customer' || (user?.role === 'server' && ['pending', 'confirmed'].includes(order.status));
-  };
-
-  const filteredMenuItems = menuItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading) {
     return (
@@ -583,9 +416,7 @@ const CustomerDashboard: React.FC = () => {
         {/* Recent Orders */}
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-4 border-b">
-            <h3 className="font-semibold text-gray-900">
-              {user?.role === 'server' ? 'Orders by Table' : 'Recent Orders'}
-            </h3>
+            <h3 className="font-semibold text-gray-900">Recent Orders</h3>
           </div>
           
           <div className="p-4">
@@ -594,179 +425,15 @@ const CustomerDashboard: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {orders.slice(0, 5).map(order => (
-                  <div key={order.id} className={`border rounded-md p-3 ${editingOrder === order.id ? 'border-blue-300 bg-blue-50' : ''}`}>
-                    {editingOrder === order.id ? (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-medium text-blue-900">
-                            Edit Order #{order.id.slice(-6)}
-                          </h4>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => saveOrderChanges(order.id)}
-                              className="flex items-center px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                            >
-                              <Save className="h-3 w-3 mr-1" />
-                              Save
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="flex items-center px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
-                            >
-                              <X className="h-3 w-3 mr-1" />
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-blue-800 mb-1">
-                              Table Number
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={editForm.tableNumber}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, tableNumber: parseInt(e.target.value) || 1 }))}
-                              className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-blue-800 mb-1">
-                            Special Instructions
-                          </label>
-                          <textarea
-                            value={editForm.specialInstructions}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, specialInstructions: e.target.value }))}
-                            rows={2}
-                            className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
-                            placeholder="Any special requests..."
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="block text-sm font-medium text-blue-800">
-                              Order Items
-                            </label>
-                            <button
-                              onClick={() => setShowAddItem(!showAddItem)}
-                              className="flex items-center px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Add Item
-                            </button>
-                          </div>
-
-                          {showAddItem && (
-                            <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
-                              <div className="mb-2">
-                                <div className="relative">
-                                  <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-400" />
-                                  <input
-                                    type="text"
-                                    placeholder="Search menu items..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-7 pr-2 py-1 border border-green-300 rounded text-xs"
-                                  />
-                                </div>
-                              </div>
-                              <div className="max-h-32 overflow-y-auto space-y-1">
-                                {filteredMenuItems.slice(0, 5).map(item => (
-                                  <button
-                                    key={item.id}
-                                    onClick={() => addItemToEditOrder(item)}
-                                    className="w-full text-left px-2 py-1 hover:bg-green-100 rounded text-xs flex justify-between items-center"
-                                  >
-                                    <span>{item.name}</span>
-                                    <span className="text-green-600 font-medium">£{item.price.toFixed(2)}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="space-y-2 mb-3">
-                            {editForm.items.map((item, index) => (
-                              <div key={index} className="flex justify-between items-center bg-white p-2 rounded border">
-                                <div className="flex-1">
-                                  <span className="font-medium text-sm">{item.menu_item.name}</span>
-                                  <div className="text-xs text-gray-500">
-                                    £{item.menu_item.price.toFixed(2)} each
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <button
-                                    onClick={() => updateEditItemQuantity(item.id, -1)}
-                                    className="p-1 hover:bg-gray-100 rounded"
-                                    disabled={item.quantity === 1}
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </button>
-                                  <span className="font-semibold text-amber-600 min-w-[2rem] text-center">
-                                    ×{item.quantity}
-                                  </span>
-                                  <button
-                                    onClick={() => updateEditItemQuantity(item.id, 1)}
-                                    className="p-1 hover:bg-gray-100 rounded"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => removeEditItem(item.id)}
-                                    className="p-1 text-red-600 hover:bg-red-50 rounded ml-2"
-                                    title="Remove item"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {editForm.items.length > 0 && (
-                            <div className="p-2 bg-gray-50 border border-gray-200 rounded text-sm">
-                              <div className="flex justify-between">
-                                <span>Subtotal:</span>
-                                <span>£{calculateEditOrderTotals(editForm.items).subtotal.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Tax:</span>
-                                <span>£{calculateEditOrderTotals(editForm.items).tax.toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between font-bold border-t pt-1 mt-1">
-                                <span>Total:</span>
-                                <span>£{calculateEditOrderTotals(editForm.items).total.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <>
+                  <div key={order.id} className="border rounded-md p-3">
                     <div className="flex justify-between items-center mb-2">
                       <div>
                         <span className="text-sm font-medium">Order #{order.id.slice(-6)}</span>
                         <span className="text-xs text-gray-500 ml-2">Table {order.table_number}</span>
                       </div>
-                        <div className="flex items-center space-x-2">
-                          {canEditOrder(order) && (
-                            <button
-                              onClick={() => startEditingOrder(order)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                              title="Edit Order"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          )}
-                          <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1">
                         {getStatusIcon(order.status)}
                         <span className="text-sm capitalize">{order.status}</span>
-                          </div>
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-sm mb-2">
@@ -808,8 +475,6 @@ const CustomerDashboard: React.FC = () => {
                           Accept In-Person Payment
                         </button>
                       </div>
-                    )}
-                      </>
                     )}
                   </div>
                 ))}
