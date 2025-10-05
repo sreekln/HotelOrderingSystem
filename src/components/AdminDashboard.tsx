@@ -62,6 +62,133 @@ export default function AdminDashboard() {
     available: true
   });
 
+  // Helper function to get filter label
+  const getFilterLabel = () => {
+    switch (dateFilter) {
+      case 'daily':
+        return 'Today';
+      case 'weekly':
+        return 'This Week';
+      case 'monthly':
+        return 'This Month';
+      case 'all':
+        return 'All Time';
+      default:
+        return 'All Time';
+    }
+  };
+
+  // Helper function to filter sessions by date
+  const getFilteredSessions = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return tableSessions.filter(session => {
+      const sessionDate = new Date(session.created_at);
+      
+      switch (dateFilter) {
+        case 'daily':
+          return sessionDate >= today;
+        case 'weekly':
+          return sessionDate >= thisWeekStart;
+        case 'monthly':
+          return sessionDate >= thisMonthStart;
+        case 'all':
+        default:
+          return true;
+      }
+    });
+  };
+
+  const filteredSessions = getFilteredSessions();
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    try {
+      const workbook = XLSX.utils.book_new();
+      
+      // Summary sheet
+      const summaryData = [
+        ['Restaurant Admin Report'],
+        ['Generated:', new Date().toLocaleString()],
+        ['Filter Period:', getFilterLabel()],
+        [''],
+        ['Summary Statistics'],
+        ['Total Revenue:', `£${stats.totalRevenue.toFixed(2)}`],
+        ['Total Sessions:', stats.totalSessions],
+        ['Total Part Orders:', stats.totalPartOrders],
+        ['Total Customers:', stats.totalCustomers],
+        ['Average Session Value:', `£${stats.averageSessionValue.toFixed(2)}`]
+      ];
+      
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+      
+      // Table Sessions sheet
+      const sessionsData = [
+        ['Table Number', 'Customer Name', 'Total Amount', 'Session Status', 'Payment Status', 'Part Orders Count', 'Created Date']
+      ];
+      
+      filteredSessions.forEach(session => {
+        sessionsData.push([
+          session.table_number,
+          session.customer_name,
+          session.total_amount,
+          session.status,
+          session.payment_status || 'pending',
+          session.part_orders.length,
+          format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')
+        ]);
+      });
+      
+      const sessionsSheet = XLSX.utils.aoa_to_sheet(sessionsData);
+      XLSX.utils.book_append_sheet(workbook, sessionsSheet, 'Table Sessions');
+      
+      // Part Orders Detail sheet
+      const partOrdersData = [
+        ['Table Number', 'Customer Name', 'Part Order ID', 'Status', 'Item Name', 'Quantity', 'Unit Price', 'Tax Rate', 'Company', 'Created Date']
+      ];
+      
+      filteredSessions.forEach(session => {
+        session.part_orders.forEach(partOrder => {
+          partOrder.items.forEach(orderItem => {
+            partOrdersData.push([
+              session.table_number,
+              session.customer_name,
+              partOrder.id,
+              partOrder.status,
+              orderItem.item.name,
+              orderItem.quantity,
+              orderItem.item.price,
+              `${orderItem.item.tax_rate}%`,
+              orderItem.item.company,
+              format(new Date(partOrder.created_at), 'MMM dd, yyyy HH:mm')
+            ]);
+          });
+        });
+      });
+      
+      const partOrdersSheet = XLSX.utils.aoa_to_sheet(partOrdersData);
+      XLSX.utils.book_append_sheet(workbook, partOrdersSheet, 'Part Orders Detail');
+      
+      // Generate filename with current date and filter
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      const filterStr = getFilterLabel().replace(' ', '_').toLowerCase();
+      const filename = `restaurant_report_${filterStr}_${dateStr}.xlsx`;
+      
+      // Save the file
+      XLSX.writeFile(workbook, filename);
+      
+      toast.success('Report exported successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export report');
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
