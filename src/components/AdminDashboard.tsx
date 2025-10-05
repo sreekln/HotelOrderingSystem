@@ -510,82 +510,101 @@ export default function AdminDashboard() {
       {activeTab === 'sessions' && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">All Table Sessions</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                All Table Sessions {getFilterLabel()} ({filteredSessions.length})
+              </h3>
+              <button
+                onClick={exportToExcel}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Excel
+              </button>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Table & Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Part Orders
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Session Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {tableSessions.map((session) => (
-                  <tr key={`${session.table_number}-${session.created_at}`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      Table {session.table_number}
-                      <div className="text-xs text-gray-500">{session.customer_name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="space-y-1">
-                        {session.part_orders.map((partOrder, index) => (
-                          <div key={partOrder.id} className="flex items-center space-x-2">
-                            <span className="text-xs">#{index + 1}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
-                              {getPartOrderStatusIcon(partOrder.status)}
-                              <span className="ml-1">{partOrder.status.replace('_', ' ')}</span>
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {partOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      £{session.total_amount.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
-                        {session.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        session.payment_status === 'paid' 
-                          ? 'text-green-600 bg-green-50'
-                          : session.payment_status === 'pending'
-                          ? 'text-yellow-600 bg-yellow-50'
-                          : 'text-red-600 bg-red-50'
-                      }`}>
-                        {session.payment_status || 'pending'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
-                    </td>
+          {filteredSessions.length === 0 ? (
+            <div className="p-12 text-center">
+              <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
+              <p className="text-gray-500">No table sessions found for {getFilterLabel().toLowerCase()}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Table & Customer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Part Orders
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Session Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Payment Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredSessions.map((session) => (
+                    <tr key={`${session.table_number}-${session.created_at}`}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Table {session.table_number}
+                        <div className="text-xs text-gray-500">{session.customer_name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="space-y-1">
+                          {session.part_orders.map((partOrder, index) => (
+                            <div key={partOrder.id} className="flex items-center space-x-2">
+                              <span className="text-xs">#{index + 1}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
+                                {getPartOrderStatusIcon(partOrder.status)}
+                                <span className="ml-1">{partOrder.status.replace('_', ' ')}</span>
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {partOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        £{session.total_amount.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                          {session.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          session.payment_status === 'paid' 
+                            ? 'text-green-600 bg-green-50'
+                            : session.payment_status === 'pending'
+                            ? 'text-yellow-600 bg-yellow-50'
+                            : 'text-red-600 bg-red-50'
+                        }`}>
+                          {session.payment_status || 'pending'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
