@@ -14,10 +14,14 @@ import {
   CheckCircle,
   Printer,
   Coffee,
-  Utensils
+  Utensils,
+  Download,
+  Calendar,
+  Filter
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 // Part Orders and Table Sessions interfaces (matching ServerDashboard)
 interface PartOrder {
@@ -47,6 +51,8 @@ interface DashboardStats {
   totalCustomers: number;
   averageSessionValue: number;
 }
+
+type DateFilter = 'daily' | 'weekly' | 'monthly' | 'all';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
