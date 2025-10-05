@@ -56,11 +56,18 @@ export default function AdminDashboard() {
     description: '',
     price: '',
     category: 'appetizer',
-    company: '',
+    company: 'Lush & Hush',
     tax_rate: '8.5',
     food_category: 'Cooked',
     available: true
   });
+
+  // Predefined company options
+  const companyOptions = [
+    'Lush & Hush',
+    'Pick D',
+    'SS Food Court'
+  ];
 
   // Helper function to get filter label
   const getFilterLabel = () => {
@@ -164,7 +171,7 @@ export default function AdminDashboard() {
               orderItem.quantity,
               orderItem.item.price,
               `${orderItem.item.tax_rate}%`,
-              orderItem.item.company,
+          company: 'Lush & Hush',
               format(new Date(partOrder.created_at), 'MMM dd, yyyy HH:mm')
             ]);
           });
@@ -766,14 +773,18 @@ export default function AdminDashboard() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                    <input
-                      type="text"
+                    <select
                       required
                       value={menuForm.company}
                       onChange={(e) => setMenuForm(prev => ({ ...prev, company: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="Enter company name"
-                    />
+                    >
+                      {companyOptions.map(company => (
+                        <option key={company} value={company}>
+                          {company}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -870,7 +881,7 @@ export default function AdminDashboard() {
                           description: '',
                           price: '',
                           category: 'appetizer',
-                          company: '',
+                          company: 'Lush & Hush',
                           tax_rate: '8.5',
                           food_category: 'Cooked',
                           available: true
