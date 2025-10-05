@@ -166,21 +166,6 @@ export default function AdminDashboard() {
         }
       ];
       
-      // Calculate stats from table sessions
-      const paidSessions = mockTableSessions.filter(s => s.payment_status === 'paid');
-      const totalRevenue = paidSessions.reduce((sum, session) => sum + session.total_amount, 0);
-      const totalPartOrders = mockTableSessions.reduce((sum, session) => sum + session.part_orders.length, 0);
-      const uniqueCustomers = new Set(mockTableSessions.map(s => s.customer_name)).size;
-      const averageSessionValue = paidSessions.length > 0 ? totalRevenue / paidSessions.length : 0;
-
-      setStats({
-        totalRevenue,
-        totalSessions: paidSessions.length,
-        totalPartOrders,
-        totalCustomers: uniqueCustomers,
-        averageSessionValue
-      });
-
       // Sort sessions by creation time
       const sortedSessions = mockTableSessions
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
