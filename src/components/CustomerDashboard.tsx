@@ -307,6 +307,10 @@ const ServerDashboard: React.FC = () => {
     setShowInPersonPayment(null);
   };
 
+  const canCloseSession = (session: TableSession) => {
+    return session.part_orders.every(partOrder => partOrder.status === 'served');
+  };
+
   const groupedMenuItems = menuItems.reduce((acc, item) => {
     if (!acc[item.category]) {
       acc[item.category] = [];
@@ -736,9 +740,17 @@ const ServerDashboard: React.FC = () => {
                     {/* Close Table Session */}
                     {session.status === 'active' && (
                       <div className="space-y-2">
+                        {!canCloseSession(session) && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
+                            <p className="text-sm text-yellow-800">
+                              <strong>Payment Disabled:</strong> All part orders must be marked as "Served" before payment can be processed.
+                            </p>
+                          </div>
+                        )}
+                        
                         <button
                           onClick={() => closeTableSession(session)}
-                          disabled={paymentLoading === session.table_number.toString()}
+                          disabled={paymentLoading === session.table_number.toString() || !canCloseSession(session)}
                           className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
                         >
                           {paymentLoading === session.table_number.toString() ? (
@@ -746,15 +758,21 @@ const ServerDashboard: React.FC = () => {
                           ) : (
                             <CreditCard className="h-4 w-4 mr-2" />
                           )}
-                          {paymentLoading === session.table_number.toString() ? 'Processing...' : 'Close & Pay (Stripe)'}
+                          {paymentLoading === session.table_number.toString() 
+                            ? 'Processing...' 
+                            : !canCloseSession(session)
+                            ? 'Complete All Orders First'
+                            : 'Close & Pay (Stripe)'
+                          }
                         </button>
                         
                         <button
                           onClick={() => handleInPersonPayment(session)}
+                          disabled={!canCloseSession(session)}
                           className="w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 transition-colors flex items-center justify-center text-sm font-medium"
                         >
                           <DollarSign className="h-4 w-4 mr-2" />
-                          Pay with Terminal
+                          {!canCloseSession(session) ? 'Complete All Orders First' : 'Pay with Terminal'}
                         </button>
                       </div>
                     )}
