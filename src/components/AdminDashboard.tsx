@@ -1,24 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Users, 
-  ShoppingBag, 
-  Plus,
-  Edit,
-  Trash2,
-  Settings,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  Printer,
-  Coffee,
-  Utensils,
-  Download,
-  Calendar,
-  Filter
-} from 'lucide-react';
+import { DollarSign, TrendingUp, Users, ShoppingBag, Plus, CreditCard as Edit, Trash2, Settings, CreditCard, Clock, CheckCircle, Printer, Coffee, Utensils, Download, Calendar, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
@@ -485,26 +467,7 @@ export default function AdminDashboard() {
       {activeTab === 'sessions' && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">
-                All Table Sessions
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  ({dateFilter === 'daily' ? 'Today' : dateFilter === 'weekly' ? 'This Week' : dateFilter === 'monthly' ? 'This Month' : 'All Time'})
-                </span>
-              </h3>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-500">
-                  {filteredTableSessions.length} session{filteredTableSessions.length !== 1 ? 's' : ''}
-                </span>
-                <button
-                  onClick={exportToExcel}
-                  className="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 transition-colors flex items-center text-sm"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  Export
-                </button>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900">All Table Sessions</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -531,16 +494,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTableSessions.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
-                      <Filter className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500">No sessions found for the selected period</p>
-                      <p className="text-sm text-gray-400 mt-1">Try selecting a different date range</p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredTableSessions.map((session) => (
+                {tableSessions.map((session) => (
                   <tr key={`${session.table_number}-${session.created_at}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       Table {session.table_number}
@@ -585,8 +539,7 @@ export default function AdminDashboard() {
                       {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
                     </td>
                   </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
