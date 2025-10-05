@@ -1,46 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard as Edit, Save, X, Search, User, CreditCard, DollarSign, Shield } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import InPersonPayment from './InPersonPayment';
 
-const CustomerDashboard: React.FC = () => {
+interface PartOrder {
+  id: string;
+  table_number: number;
+  items: { item: MenuItem; quantity: number }[];
+  special_instructions?: string;
+  status: 'draft' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served';
+  created_at: string;
+  printed_at?: string;
+}
+
+interface TableSession {
+  table_number: number;
+  customer_name: string;
+  part_orders: PartOrder[];
+  total_amount: number;
+  status: 'active' | 'ready_to_close' | 'closed';
+  created_at: string;
+}
+
+const ServerDashboard: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<{ item: MenuItem; quantity: number }[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tableNumber, setTableNumber] = useState<number>(1);
+  const [selectedTable, setSelectedTable] = useState<number>(1);
+  const [customerName, setCustomerName] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [editingOrder, setEditingOrder] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{
-    tableNumber: number;
-    specialInstructions: string;
-    items: { item: MenuItem; quantity: number; isNew?: boolean }[];
-  }>({
-    tableNumber: 1,
-    specialInstructions: '',
-    items: []
-  });
-  const [showAddItem, setShowAddItem] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'order' | 'tables'>('order');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
     fetchMenuItems();
-    if (user) {
-      fetchOrders();
-    }
-  }, [user]);
+    fetchTableSessions();
+  }, []);
 
   const fetchMenuItems = async () => {
     try {
-      // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
-      
       const availableItems = mockMenuItems.filter(item => item.available);
       setMenuItems(availableItems);
     } catch (error) {
@@ -51,19 +58,35 @@ const CustomerDashboard: React.FC = () => {
     }
   };
 
-  const fetchOrders = async () => {
+  const fetchTableSessions = async () => {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const userOrders = mockOrders
-        .filter(order => order.customer_id === user?.id)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      setOrders(userOrders);
+      // Mock table sessions - in real app this would come from database
+      const mockSessions: TableSession[] = [
+        {
+          table_number: 5,
+          customer_name: 'Smith Family',
+          part_orders: [
+            {
+              id: 'part-1',
+              table_number: 5,
+              items: [
+                { item: mockMenuItems[0], quantity: 2 },
+                { item: mockMenuItems[1], quantity: 1 }
+              ],
+              status: 'served',
+              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 40.97,
+          status: 'active',
+          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
+        }
+      ];
+      setTableSessions(mockSessions);
     } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
+      console.error('Error fetching table sessions:', error);
+      toast.error('Failed to load table sessions');
     }
   };
 
@@ -94,271 +117,157 @@ const CustomerDashboard: React.FC = () => {
     });
   };
 
-  const getTotalAmount = () => {
-    return cart.reduce((total, cartItem) => total + (cartItem.item.price * cartItem.quantity), 0);
+  const printToKitchen = async (partOrder: PartOrder) => {
+    try {
+      setLoading(true);
+      
+      // Simulate printing delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // In a real implementation, this would send to kitchen printer
+      console.log('Printing to kitchen:', {
+        table: partOrder.table_number,
+        items: partOrder.items,
+        instructions: partOrder.special_instructions,
+        timestamp: new Date().toISOString()
+      });
+      
+      toast.success(`Order sent to kitchen printer for Table ${partOrder.table_number}`);
+      
+      return {
+        ...partOrder,
+        status: 'sent_to_kitchen' as const,
+        printed_at: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error printing to kitchen:', error);
+      toast.error('Failed to send order to kitchen');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const createOrder = async () => {
-    if (!user || cart.length === 0) return;
+  const sendPartOrder = async () => {
+    if (!user || cart.length === 0) {
+      toast.error('Please add items to cart');
+      return;
+    }
+
+    if (!customerName.trim()) {
+      toast.error('Please enter customer name');
+      return;
+    }
 
     try {
       setLoading(true);
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const cartTotals = calculateCartTotal(cart);
-      
-      // Create new order
-      const newOrder: Order = {
-        id: `order-${Date.now()}`,
-        customer_id: user.id,
-        subtotal: cartTotals.subtotal,
-        tax_amount: cartTotals.tax,
-        total_amount: cartTotals.total,
-        status: 'pending',
-        payment_status: 'pending',
-        table_number: tableNumber,
+      const newPartOrder: PartOrder = {
+        id: `part-${Date.now()}`,
+        table_number: selectedTable,
+        items: [...cart],
         special_instructions: specialInstructions,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        status: 'draft',
+        created_at: new Date().toISOString()
       };
-      
-      // Add to mock orders
-      mockOrders.unshift(newOrder);
-      
-      // Create order items
-      cart.forEach(cartItem => {
-        mockOrderItems.push({
-          id: `item-${Date.now()}-${cartItem.item.id}`,
-          order_id: newOrder.id,
-          menu_item_id: cartItem.item.id,
-          quantity: cartItem.quantity,
-          price: cartItem.item.price
-        });
+
+      // Print to kitchen
+      const printedOrder = await printToKitchen(newPartOrder);
+
+      // Update or create table session
+      setTableSessions(prev => {
+        const existingSession = prev.find(session => session.table_number === selectedTable);
+        
+        if (existingSession) {
+          // Add to existing session
+          const updatedSession = {
+            ...existingSession,
+            part_orders: [...existingSession.part_orders, printedOrder],
+            total_amount: existingSession.total_amount + calculateCartTotal(cart).total
+          };
+          
+          return prev.map(session => 
+            session.table_number === selectedTable ? updatedSession : session
+          );
+        } else {
+          // Create new session
+          const newSession: TableSession = {
+            table_number: selectedTable,
+            customer_name: customerName,
+            part_orders: [printedOrder],
+            total_amount: calculateCartTotal(cart).total,
+            status: 'active',
+            created_at: new Date().toISOString()
+          };
+          
+          return [...prev, newSession];
+        }
       });
 
-      toast.success('Order placed successfully!');
+      // Clear cart and form
       setCart([]);
       setSpecialInstructions('');
-      fetchOrders();
+      
+      toast.success(`Part order sent to kitchen for Table ${selectedTable}`);
     } catch (error) {
-      console.error('Error creating order:', error);
-      toast.error('Failed to place order');
+      console.error('Error sending part order:', error);
+      toast.error('Failed to send part order');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePayment = async (order: Order) => {
-    if (!user) return;
-
+  const updatePartOrderStatus = async (sessionIndex: number, partOrderId: string, newStatus: PartOrder['status']) => {
     try {
-      setPaymentLoading(order.id);
-      
-      console.log('Creating checkout session for order:', order.id, 'Amount:', order.total_amount);
-      
-      // Create a dynamic price for the order total
-      const checkoutData = await createCheckoutSession({
-        price_id: '', // Empty since we're using dynamic pricing
-        success_url: `${window.location.origin}/success?order_id=${order.id}`,
-        cancel_url: `${window.location.origin}/?payment=cancelled`,
-        mode: 'payment',
-        orderId: order.id,
-        amount: Math.round(order.total_amount * 100), // Convert to cents
-      });
-
-      console.log('Checkout session created:', checkoutData);
-
-      if (checkoutData.url) {
-        window.location.href = checkoutData.url;
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      toast.error(error.message || 'Failed to initiate payment');
-    } finally {
-      setPaymentLoading(null);
-    }
-  };
-
-  const handleInPersonPayment = (order: Order) => {
-    setShowInPersonPayment(order.id);
-  };
-
-  const handleInPersonPaymentSuccess = () => {
-    if (showInPersonPayment) {
-      // Update order payment status
-      const orderIndex = mockOrders.findIndex(order => order.id === showInPersonPayment);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex] = {
-          ...mockOrders[orderIndex],
-          payment_status: 'paid',
-          updated_at: new Date().toISOString()
-        };
-      }
-      toast.success('In-person payment completed successfully!');
-      setShowInPersonPayment(null);
-      fetchOrders();
-    }
-  };
-
-  const handleInPersonPaymentCancel = () => {
-    setShowInPersonPayment(null);
-  };
-
-  const startEditingOrder = (order: Order) => {
-    const orderItems = getOrderItemsWithMenuItems(order.id);
-    setEditingOrder(order.id);
-    setEditForm({
-      tableNumber: order.table_number || 1,
-      specialInstructions: order.special_instructions || '',
-      items: orderItems.map(item => ({
-        item: item.menu_item,
-        quantity: item.quantity,
-        isNew: false
-      }))
-    });
-    setShowAddItem(false);
-    setSearchTerm('');
-  };
-
-  const cancelEditing = () => {
-    setEditingOrder(null);
-    setEditForm({
-      tableNumber: 1,
-      specialInstructions: '',
-      items: []
-    });
-    setShowAddItem(false);
-    setSearchTerm('');
-  };
-
-  const saveOrderChanges = async (orderId: string) => {
-    try {
-      setLoading(true);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const totals = calculateCartTotal(editForm.items);
-      
-      // Update order in mock data
-      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex] = {
-          ...mockOrders[orderIndex],
-          table_number: editForm.tableNumber,
-          special_instructions: editForm.specialInstructions,
-          subtotal: totals.subtotal,
-          tax_amount: totals.tax,
-          total_amount: totals.total,
-          updated_at: new Date().toISOString()
-        };
-      }
-      
-      // Remove old order items
-      const oldItemIds = mockOrderItems
-        .filter(item => item.order_id === orderId)
-        .map(item => item.id);
-      
-      oldItemIds.forEach(itemId => {
-        const itemIndex = mockOrderItems.findIndex(item => item.id === itemId);
-        if (itemIndex !== -1) {
-          mockOrderItems.splice(itemIndex, 1);
-        }
-      });
-      
-      // Add updated order items
-      editForm.items.forEach(editItem => {
-        const newOrderItem: OrderItem = {
-          id: `item-${Date.now()}-${editItem.item.id}-${Math.random()}`,
-          order_id: orderId,
-          menu_item_id: editItem.item.id,
-          quantity: editItem.quantity,
-          price: editItem.item.price
-        };
-        mockOrderItems.push(newOrderItem);
-      });
-      
-      toast.success('Order updated successfully');
-      setEditingOrder(null);
-      fetchOrders();
-    } catch (error) {
-      console.error('Error updating order:', error);
-      toast.error('Failed to update order');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateEditItemQuantity = (itemId: string, delta: number) => {
-    setEditForm(prev => ({
-      ...prev,
-      items: prev.items.map(item => 
-        item.item.id === itemId 
-          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-          : item
-      )
-    }));
-  };
-
-  const removeEditItem = (itemId: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      items: prev.items.filter(item => item.item.id !== itemId)
-    }));
-    toast.success('Item removed from order');
-  };
-
-  const addItemToEditOrder = (menuItem: MenuItem) => {
-    const existingItem = editForm.items.find(item => item.item.id === menuItem.id);
-    
-    if (existingItem) {
-      updateEditItemQuantity(menuItem.id, 1);
-      toast.success(`Increased ${menuItem.name} quantity`);
-    } else {
-      const newItem = {
-        item: menuItem,
-        quantity: 1,
-        isNew: true
-      };
-      
-      setEditForm(prev => ({
-        ...prev,
-        items: [...prev.items, newItem]
-      }));
-      toast.success(`${menuItem.name} added to order`);
-    }
-  };
-
-  const handleCloseOrder = async (order: Order) => {
-    if (!user) return;
-
-    try {
-      setPaymentLoading(order.id);
-      
-      // Create checkout session for the order
-      const checkoutData = await createCheckoutSession({
-        price_id: '', // Empty since we're using dynamic pricing
-        success_url: `${window.location.origin}/success?order_id=${order.id}`,
-        cancel_url: `${window.location.origin}/?payment=cancelled`,
-        mode: 'payment',
-        orderId: order.id,
-        amount: Math.round(order.total_amount * 100), // Convert to cents
-      });
-
-      if (checkoutData.url) {
-        // Update order status to closed before redirecting
-        const orderIndex = mockOrders.findIndex(o => o.id === order.id);
-        if (orderIndex !== -1) {
-          mockOrders[orderIndex] = {
-            ...mockOrders[orderIndex],
-            status: 'delivered',
-            updated_at: new Date().toISOString()
+      setTableSessions(prev => {
+        const updated = [...prev];
+        const session = updated[sessionIndex];
+        const partOrderIndex = session.part_orders.findIndex(po => po.id === partOrderId);
+        
+        if (partOrderIndex !== -1) {
+          updated[sessionIndex] = {
+            ...session,
+            part_orders: session.part_orders.map((po, idx) => 
+              idx === partOrderIndex ? { ...po, status: newStatus } : po
+            )
           };
         }
+        
+        return updated;
+      });
+      
+      toast.success(`Part order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating part order status:', error);
+      toast.error('Failed to update part order status');
+    }
+  };
+
+  const closeTableSession = async (session: TableSession) => {
+    if (!user) return;
+
+    try {
+      setPaymentLoading(session.table_number.toString());
+      
+      // Create checkout session for the total amount
+      const checkoutData = await createCheckoutSession({
+        price_id: '', // Empty since we're using dynamic pricing
+        success_url: `${window.location.origin}/success?table=${session.table_number}`,
+        cancel_url: `${window.location.origin}/?payment=cancelled`,
+        mode: 'payment',
+        orderId: `table-${session.table_number}-${Date.now()}`,
+        amount: Math.round(session.total_amount * 100), // Convert to cents
+      });
+
+      if (checkoutData.url) {
+        // Mark session as closed
+        setTableSessions(prev => 
+          prev.map(s => 
+            s.table_number === session.table_number 
+              ? { ...s, status: 'closed' as const }
+              : s
+          )
+        );
         
         window.location.href = checkoutData.url;
       } else {
@@ -370,6 +279,32 @@ const CustomerDashboard: React.FC = () => {
     } finally {
       setPaymentLoading(null);
     }
+  };
+
+  const handleInPersonPayment = (session: TableSession) => {
+    setShowInPersonPayment(session.table_number.toString());
+  };
+
+  const handleInPersonPaymentSuccess = () => {
+    if (showInPersonPayment) {
+      const tableNumber = parseInt(showInPersonPayment);
+      
+      // Mark session as closed and paid
+      setTableSessions(prev => 
+        prev.map(session => 
+          session.table_number === tableNumber 
+            ? { ...session, status: 'closed' as const }
+            : session
+        )
+      );
+      
+      toast.success('In-person payment completed successfully!');
+      setShowInPersonPayment(null);
+    }
+  };
+
+  const handleInPersonPaymentCancel = () => {
+    setShowInPersonPayment(null);
   };
 
   const groupedMenuItems = menuItems.reduce((acc, item) => {
@@ -385,29 +320,38 @@ const CustomerDashboard: React.FC = () => {
     item.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusIcon = (status: string) => {
+  const getPartOrderStatusIcon = (status: PartOrder['status']) => {
     switch (status) {
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'confirmed':
+      case 'draft':
+        return <Clock className="h-4 w-4 text-gray-500" />;
+      case 'sent_to_kitchen':
+        return <Printer className="h-4 w-4 text-blue-500" />;
       case 'preparing':
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return <Coffee className="h-4 w-4 text-orange-500" />;
       case 'ready':
-      case 'delivered':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'served':
+        return <Utensils className="h-4 w-4 text-purple-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const canEditOrder = (order: Order) => {
-    return order.status === 'pending' && user?.role === 'server';
-  };
-
-  const canCloseOrder = (order: Order) => {
-    return (order.status === 'ready' || order.status === 'delivered') && 
-           order.payment_status === 'pending' && 
-           user?.role === 'server';
+  const getPartOrderStatusColor = (status: PartOrder['status']) => {
+    switch (status) {
+      case 'draft':
+        return 'text-gray-600 bg-gray-50';
+      case 'sent_to_kitchen':
+        return 'text-blue-600 bg-blue-50';
+      case 'preparing':
+        return 'text-orange-600 bg-orange-50';
+      case 'ready':
+        return 'text-green-600 bg-green-50';
+      case 'served':
+        return 'text-purple-600 bg-purple-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
   };
 
   if (loading) {
@@ -419,108 +363,161 @@ const CustomerDashboard: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Menu */}
-      <div className="lg:col-span-2">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Our Menu</h2>
-        
-        {Object.entries(groupedMenuItems).map(([category, items]) => (
-          <div key={category} className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 capitalize">{category}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {items.map(item => (
-                <div key={item.id} className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-xs text-gray-500">{item.company}</span>
-                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                          {item.food_category}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                      <div className="mt-2">
-                        <p className="text-lg font-bold text-amber-600">£{item.price.toFixed(2)}</p>
-                        <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => addToCart(item)}
-                      className="ml-4 p-2 bg-amber-600 text-white rounded-full hover:bg-amber-700 transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <User className="h-8 w-8 mr-3 text-blue-600" />
+          Server Dashboard
+        </h1>
+        <div className="text-sm text-gray-600">
+          Active Tables: {tableSessions.filter(s => s.status === 'active').length}
+        </div>
       </div>
 
-      {/* Cart & Orders */}
-      <div className="space-y-6">
-        {/* Payment Gateway Promotion */}
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200">
-          <div className="p-4">
-            <div className="flex items-center mb-2">
-              <Shield className="h-5 w-5 text-amber-600 mr-2" />
-              <h3 className="font-semibold text-amber-800">Secure Payment Gateway</h3>
-            </div>
-            <p className="text-sm text-amber-700 mb-3">
-              Enable secure payment processing for your orders with our premium payment gateway.
-            </p>
-            <Link
-              to="/payment-gateway"
-              className="inline-flex items-center px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors"
-            >
-              Learn More
-            </Link>
-          </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {[
+              { key: 'order', label: 'Take Order' },
+              { key: 'tables', label: 'Table Sessions' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } transition-colors`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
         </div>
+      </div>
 
-        {/* Cart */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold text-gray-900 flex items-center">
-              <ShoppingCart className="h-5 w-5 mr-2" />
-              Your Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)})
-            </h3>
-          </div>
-          
-          <div className="p-4">
-            {cart.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">Your cart is empty</p>
-            ) : (
-              <>
-                <div className="space-y-3 mb-4">
-                  {cart.map(cartItem => (
-                    <div key={cartItem.item.id} className="flex justify-between items-center">
+      {activeTab === 'order' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Menu */}
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Menu</h2>
+            
+            {/* Search */}
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search menu items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            
+            {searchTerm ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredMenuItems.map(item => (
+                  <div key={item.id} className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{cartItem.item.name}</p>
-                        <p className="text-amber-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
+                        <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-xs text-gray-500">{item.company}</span>
+                          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                            {item.food_category}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                        <div className="mt-2">
+                          <p className="text-lg font-bold text-blue-600">£{item.price.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => updateCartQuantity(cartItem.item.id, -1)}
-                          className="p-1 hover:bg-gray-100 rounded"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="font-medium">{cartItem.quantity}</span>
-                        <button
-                          onClick={() => updateCartQuantity(cartItem.item.id, 1)}
-                          className="p-1 hover:bg-gray-100 rounded"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => addToCart(item)}
+                        className="ml-4 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              Object.entries(groupedMenuItems).map(([category, items]) => (
+                <div key={category} className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 capitalize">{category}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {items.map(item => (
+                      <div key={item.id} className="bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className="text-xs text-gray-500">{item.company}</span>
+                              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                                {item.food_category}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                            <div className="mt-2">
+                              <p className="text-lg font-bold text-blue-600">£{item.price.toFixed(2)}</p>
+                              <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => addToCart(item)}
+                            className="ml-4 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              ))
+            )}
+          </div>
 
-                <div className="border-t pt-4 space-y-3">
+          {/* Part Order Cart */}
+          <div className="space-y-6">
+            {/* Payment Gateway Promotion */}
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200">
+              <div className="p-4">
+                <div className="flex items-center mb-2">
+                  <Shield className="h-5 w-5 text-blue-600 mr-2" />
+                  <h3 className="font-semibold text-blue-800">Secure Payment Gateway</h3>
+                </div>
+                <p className="text-sm text-blue-700 mb-3">
+                  Enable secure payment processing with Stripe Terminal integration.
+                </p>
+                <Link
+                  to="/payment-gateway"
+                  className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Learn More
+                </Link>
+              </div>
+            </div>
+
+            {/* Part Order Form */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="p-4 border-b">
+                <h3 className="font-semibold text-gray-900 flex items-center">
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  Part Order ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)
+                </h3>
+              </div>
+              
+              <div className="p-4">
+                {/* Table and Customer Info */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Table Number
@@ -528,334 +525,258 @@ const CustomerDashboard: React.FC = () => {
                     <input
                       type="number"
                       min="1"
-                      value={tableNumber}
-                      onChange={(e) => setTableNumber(parseInt(e.target.value))}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                      value={selectedTable}
+                      onChange={(e) => setSelectedTable(parseInt(e.target.value) || 1)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Special Instructions
+                      Customer Name
                     </label>
-                    <textarea
-                      value={specialInstructions}
-                      onChange={(e) => setSpecialInstructions(e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm"
-                      placeholder="Any special requests..."
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter customer name"
                     />
                   </div>
+                </div>
 
-                  <div className="border-t pt-3 space-y-2">
-                    {(() => {
-                      const cartTotals = calculateCartTotal(cart);
-                      return (
-                        <>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Subtotal:</span>
-                          <span>£{cartTotals.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Tax:</span>
-                          <span>£{cartTotals.tax.toFixed(2)}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1">
-                      {cart.map((cartItem, index) => (
-                        <div key={index} className="flex justify-between">
-                          <span>{cartItem.item.name} (Tax: {cartItem.item.tax_rate}%)</span>
-                          <span>£{(cartItem.item.price * cartItem.quantity * cartItem.item.tax_rate / 100).toFixed(2)}</span>
+                {cart.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">Add items to create part order</p>
+                ) : (
+                  <>
+                    <div className="space-y-3 mb-4">
+                      {cart.map(cartItem => (
+                        <div key={cartItem.item.id} className="flex justify-between items-center">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{cartItem.item.name}</p>
+                            <p className="text-blue-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => updateCartQuantity(cartItem.item.id, -1)}
+                              className="p-1 hover:bg-gray-100 rounded"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="font-medium">{cartItem.quantity}</span>
+                            <button
+                              onClick={() => updateCartQuantity(cartItem.item.id, 1)}
+                              className="p-1 hover:bg-gray-100 rounded"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
-                    <div className="flex justify-between items-center font-bold text-lg border-t pt-2">
-                      <span>Total:</span>
-                          <span className="text-amber-600">£{cartTotals.total.toFixed(2)}</span>
-                    </div>
-                        </>
-                      );
-                    })()}
-                  </div>
 
-                  <button
-                    onClick={createOrder}
-                    disabled={loading}
-                    className="w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Place Order
-                  </button>
-                </div>
-              </>
-            )}
+                    <div className="border-t pt-4 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Special Instructions
+                        </label>
+                        <textarea
+                          value={specialInstructions}
+                          onChange={(e) => setSpecialInstructions(e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Any special requests for kitchen..."
+                        />
+                      </div>
+
+                      <div className="border-t pt-3 space-y-2">
+                        {(() => {
+                          const cartTotals = calculateCartTotal(cart);
+                          return (
+                            <>
+                              <div className="flex justify-between items-center text-sm">
+                                <span>Subtotal:</span>
+                                <span>£{cartTotals.subtotal.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <span>Tax:</span>
+                                <span>£{cartTotals.tax.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center font-bold text-lg border-t pt-2">
+                                <span>Total:</span>
+                                <span className="text-blue-600">£{cartTotals.total.toFixed(2)}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      <button
+                        onClick={sendPartOrder}
+                        disabled={loading || !customerName.trim()}
+                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-medium"
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        {loading ? 'Sending to Kitchen...' : 'Send to Kitchen'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Recent Orders */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="p-4 border-b">
-            <h3 className="font-semibold text-gray-900">Orders by Table</h3>
-          </div>
-          
-          <div className="p-4">
-            {orders.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No orders yet</p>
-            ) : (
-              <div className="space-y-3">
-                {orders.slice(0, 5).map(order => (
-                  <div key={order.id} className={`border rounded-md p-3 ${
-                    editingOrder === order.id ? 'border-blue-300 bg-blue-50' : ''
-                  }`}>
-                    {editingOrder === order.id ? (
-                      // Edit Mode
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-medium text-blue-900">
-                            Edit Order #{order.id.slice(-6)}
-                          </h4>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => saveOrderChanges(order.id)}
-                              disabled={loading}
-                              className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-                            >
-                              <Save className="h-3 w-3 mr-1" />
-                              Save
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="flex items-center px-3 py-1.5 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
-                            >
-                              <X className="h-3 w-3 mr-1" />
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-blue-800 mb-1">
-                              Table Number
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={editForm.tableNumber}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, tableNumber: parseInt(e.target.value) || 1 }))}
-                              className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-blue-800 mb-1">
-                            Special Instructions
-                          </label>
-                          <textarea
-                            value={editForm.specialInstructions}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, specialInstructions: e.target.value }))}
-                            rows={2}
-                            className="w-full px-2 py-1 border border-blue-300 rounded text-sm"
-                            placeholder="Any special requests..."
-                          />
-                        </div>
-
-                        {/* Order Items */}
-                        <div>
-                          <div className="flex justify-between items-center mb-2">
-                            <label className="block text-sm font-medium text-blue-800">
-                              Order Items
-                            </label>
-                            <button
-                              onClick={() => setShowAddItem(!showAddItem)}
-                              className="flex items-center px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Add Item
-                            </button>
-                          </div>
-
-                          {showAddItem && (
-                            <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
-                              <div className="mb-2">
-                                <div className="relative">
-                                  <Search className="absolute left-2 top-1.5 h-3 w-3 text-gray-400" />
-                                  <input
-                                    type="text"
-                                    placeholder="Search menu items..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-7 pr-2 py-1 border border-green-300 rounded text-xs"
-                                  />
-                                </div>
-                              </div>
-                              <div className="max-h-32 overflow-y-auto space-y-1">
-                                {filteredMenuItems.slice(0, 5).map(item => (
-                                  <button
-                                    key={item.id}
-                                    onClick={() => addItemToEditOrder(item)}
-                                    className="w-full text-left px-2 py-1 hover:bg-green-100 rounded text-xs flex justify-between items-center"
-                                  >
-                                    <span>{item.name}</span>
-                                    <span className="text-green-600 font-medium">£{item.price.toFixed(2)}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="space-y-2">
-                            {editForm.items.map((item, index) => (
-                              <div key={index} className="flex justify-between items-center p-2 bg-white border rounded">
-                                <div className="flex-1">
-                                  <span className="font-medium text-sm">{item.item.name}</span>
-                                  <div className="text-xs text-gray-500">
-                                    £{item.item.price.toFixed(2)} each
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <button
-                                    onClick={() => updateEditItemQuantity(item.item.id, -1)}
-                                    className="p-1 hover:bg-gray-100 rounded"
-                                    disabled={item.quantity === 1}
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </button>
-                                  <span className="font-semibold text-blue-600 min-w-[2rem] text-center">
-                                    ×{item.quantity}
-                                  </span>
-                                  <button
-                                    onClick={() => updateEditItemQuantity(item.item.id, 1)}
-                                    className="p-1 hover:bg-gray-100 rounded"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => removeEditItem(item.item.id)}
-                                    className="p-1 text-red-600 hover:bg-red-50 rounded ml-2"
-                                    title="Remove item"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Order Totals */}
-                          {(() => {
-                            const editTotals = calculateCartTotal(editForm.items);
-                            return (
-                              <div className="mt-3 p-2 bg-gray-50 border border-gray-200 rounded text-sm">
-                                <div className="flex justify-between">
-                                  <span>Subtotal:</span>
-                                  <span>£{editTotals.subtotal.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Tax:</span>
-                                  <span>£{editTotals.tax.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between font-bold border-t pt-1 mt-1">
-                                  <span>Total:</span>
-                                  <span>£{editTotals.total.toFixed(2)}</span>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    ) : (
-                      // View Mode
-                      <>
-                    <div className="flex justify-between items-center mb-2">
+      {activeTab === 'tables' && (
+        <div className="space-y-6">
+          {tableSessions.length === 0 ? (
+            <div className="text-center py-12">
+              <User className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No active table sessions</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {tableSessions.map((session, sessionIndex) => (
+                <div key={session.table_number} className="bg-white rounded-lg shadow-sm border">
+                  <div className="p-4 border-b">
+                    <div className="flex justify-between items-start mb-2">
                       <div>
-                        <span className="text-sm font-medium">Order #{order.id.slice(-6)}</span>
-                        <span className="text-xs text-gray-500 ml-2">Table {order.table_number}</span>
-                            <div className="text-xs text-gray-500">
-                              Customer: {user?.full_name}
-                            </div>
+                        <h3 className="font-semibold text-gray-900">
+                          Table {session.table_number}
+                        </h3>
+                        <p className="text-sm text-gray-600">{session.customer_name}</p>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(order.status)}
-                        <span className="text-sm capitalize">{order.status}</span>
-                      </div>
-                    </div>
-
-                        {/* Order Items Display */}
-                        <div className="mb-2">
-                          <div className="text-xs text-gray-600 space-y-1">
-                            {getOrderItemsWithMenuItems(order.id).map((item, index) => (
-                              <div key={index} className="flex justify-between">
-                                <span>{item.menu_item.name} ×{item.quantity}</span>
-                                <span>£{(item.price * item.quantity).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {order.special_instructions && (
-                          <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                            <p className="text-xs text-yellow-800">
-                              <strong>Instructions:</strong> {order.special_instructions}
-                            </p>
-                          </div>
-                        )}
-
-                    <div className="flex justify-between items-center text-sm mb-2">
-                      <span>£{order.total_amount.toFixed(2)}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        order.payment_status === 'pending' 
-                          ? 'bg-yellow-100 text-yellow-800' 
-                          : order.payment_status === 'paid'
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        session.status === 'active' 
                           ? 'bg-green-100 text-green-800'
+                          : session.status === 'ready_to_close'
+                          ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {order.payment_status === 'pending' ? 'Payment Pending' : 
-                         order.payment_status === 'paid' ? 'Paid' : order.payment_status}
+                        {session.status.replace('_', ' ')}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 text-right">
-                      {new Date(order.created_at).toLocaleTimeString()}
+                    <div className="text-right">
+                      <div className="font-bold text-lg text-blue-600">
+                        £{session.total_amount.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {session.part_orders.length} part order{session.part_orders.length !== 1 ? 's' : ''}
+                      </div>
                     </div>
+                  </div>
 
-                        {/* Action Buttons */}
-                        <div className="mt-2 space-y-2">
-                          {canEditOrder(order) && (
-                            <button
-                              onClick={() => startEditingOrder(order)}
-                              className="w-full bg-blue-600 text-white py-1.5 px-3 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center text-sm font-medium"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Order
-                            </button>
+                  <div className="p-4">
+                    <div className="space-y-3 mb-4">
+                      {session.part_orders.map((partOrder, partIndex) => (
+                        <div key={partOrder.id} className="border rounded-lg p-3">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium">
+                              Part Order #{partIndex + 1}
+                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
+                                {getPartOrderStatusIcon(partOrder.status)}
+                                <span className="ml-1 capitalize">{partOrder.status.replace('_', ' ')}</span>
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-xs text-gray-600 space-y-1 mb-2">
+                            {partOrder.items.map((item, itemIndex) => (
+                              <div key={itemIndex} className="flex justify-between">
+                                <span>{item.item.name} ×{item.quantity}</span>
+                                <span>£{(item.item.price * item.quantity).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {partOrder.special_instructions && (
+                            <div className="text-xs text-yellow-800 bg-yellow-50 p-2 rounded mb-2">
+                              <strong>Instructions:</strong> {partOrder.special_instructions}
+                            </div>
                           )}
 
-                          {canCloseOrder(order) && (
+                          <div className="flex justify-between items-center text-xs text-gray-500">
+                            <span>{new Date(partOrder.created_at).toLocaleTimeString()}</span>
+                            {partOrder.printed_at && (
+                              <span>Printed: {new Date(partOrder.printed_at).toLocaleTimeString()}</span>
+                            )}
+                          </div>
+
+                          {/* Part Order Status Controls */}
+                          {partOrder.status === 'sent_to_kitchen' && (
                             <button
-                              onClick={() => handleCloseOrder(order)}
-                              disabled={paymentLoading === order.id}
-                              className="w-full bg-green-600 text-white py-1.5 px-3 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
+                              onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'preparing')}
+                              className="w-full mt-2 bg-orange-600 text-white py-1 px-2 rounded text-xs hover:bg-orange-700 transition-colors"
                             >
-                              {paymentLoading === order.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              ) : (
-                                <DollarSign className="h-4 w-4 mr-2" />
-                              )}
-                              {paymentLoading === order.id ? 'Processing...' : 'Close & Pay'}
+                              Mark Preparing
+                            </button>
+                          )}
+                          {partOrder.status === 'preparing' && (
+                            <button
+                              onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'ready')}
+                              className="w-full mt-2 bg-green-600 text-white py-1 px-2 rounded text-xs hover:bg-green-700 transition-colors"
+                            >
+                              Mark Ready
+                            </button>
+                          )}
+                          {partOrder.status === 'ready' && (
+                            <button
+                              onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'served')}
+                              className="w-full mt-2 bg-purple-600 text-white py-1 px-2 rounded text-xs hover:bg-purple-700 transition-colors"
+                            >
+                              Mark Served
                             </button>
                           )}
                         </div>
-                      </>
+                      ))}
+                    </div>
+
+                    {/* Close Table Session */}
+                    {session.status === 'active' && (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => closeTableSession(session)}
+                          disabled={paymentLoading === session.table_number.toString()}
+                          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
+                        >
+                          {paymentLoading === session.table_number.toString() ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          ) : (
+                            <CreditCard className="h-4 w-4 mr-2" />
+                          )}
+                          {paymentLoading === session.table_number.toString() ? 'Processing...' : 'Close & Pay (Stripe)'}
+                        </button>
+                        
+                        <button
+                          onClick={() => handleInPersonPayment(session)}
+                          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center text-sm font-medium"
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Pay with Terminal
+                        </button>
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
+
+      {/* In-Person Payment Modal */}
+      {showInPersonPayment && (
+        <InPersonPayment
+          orderId={`table-${showInPersonPayment}`}
+          amount={tableSessions.find(s => s.table_number.toString() === showInPersonPayment)?.total_amount || 0}
+          onSuccess={handleInPersonPaymentSuccess}
+          onCancel={handleInPersonPaymentCancel}
+        />
+      )}
     </div>
   );
 };
 
-export default CustomerDashboard;
+export default ServerDashboard;
