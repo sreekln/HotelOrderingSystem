@@ -166,6 +166,21 @@ export default function AdminDashboard() {
         }
       ];
       
+      // Calculate stats from table sessions
+      const paidSessions = mockTableSessions.filter(s => s.payment_status === 'paid');
+      const totalRevenue = paidSessions.reduce((sum, session) => sum + session.total_amount, 0);
+      const totalPartOrders = mockTableSessions.reduce((sum, session) => sum + session.part_orders.length, 0);
+      const uniqueCustomers = new Set(mockTableSessions.map(s => s.customer_name)).size;
+      const averageSessionValue = paidSessions.length > 0 ? totalRevenue / paidSessions.length : 0;
+
+      setStats({
+        totalRevenue,
+        totalSessions: paidSessions.length,
+        totalPartOrders,
+        totalCustomers: uniqueCustomers,
+        averageSessionValue
+      });
+
       // Sort sessions by creation time
       const sortedSessions = mockTableSessions
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -470,7 +485,26 @@ export default function AdminDashboard() {
       {activeTab === 'sessions' && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">All Table Sessions</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                All Table Sessions
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({dateFilter === 'daily' ? 'Today' : dateFilter === 'weekly' ? 'This Week' : dateFilter === 'monthly' ? 'This Month' : 'All Time'})
+                </span>
+              </h3>
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-500">
+                  {filteredTableSessions.length} session{filteredTableSessions.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={exportToExcel}
+                  className="bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 transition-colors flex items-center text-sm"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Export
+                </button>
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -497,7 +531,16 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {tableSessions.map((session) => (
+                {filteredTableSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <Filter className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500">No sessions found for the selected period</p>
+                      <p className="text-sm text-gray-400 mt-1">Try selecting a different date range</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTableSessions.map((session) => (
                   <tr key={`${session.table_number}-${session.created_at}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       Table {session.table_number}
@@ -542,7 +585,8 @@ export default function AdminDashboard() {
                       {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
