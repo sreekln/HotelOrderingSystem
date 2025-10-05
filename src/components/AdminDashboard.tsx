@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [menuForm, setMenuForm] = useState({
     name: '',
     description: '',
