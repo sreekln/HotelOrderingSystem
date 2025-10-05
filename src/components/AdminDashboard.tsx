@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Order, MenuItem, mockOrders, mockUsers, mockMenuItems, mockCompanies } from '../lib/mockData';
+import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -9,29 +9,57 @@ import {
   Edit,
   Trash2,
   Settings,
-  CreditCard
+  CreditCard,
+  Clock,
+  CheckCircle,
+  Printer,
+  Coffee,
+  Utensils
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
+// Part Orders and Table Sessions interfaces (matching ServerDashboard)
+interface PartOrder {
+  id: string;
+  table_number: number;
+  items: { item: MenuItem; quantity: number }[];
+  special_instructions?: string;
+  status: 'draft' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served';
+  created_at: string;
+  printed_at?: string;
+}
+
+interface TableSession {
+  table_number: number;
+  customer_name: string;
+  part_orders: PartOrder[];
+  total_amount: number;
+  status: 'active' | 'ready_to_close' | 'closed';
+  created_at: string;
+  payment_status?: 'pending' | 'paid' | 'failed';
+}
+
 interface DashboardStats {
   totalRevenue: number;
-  totalOrders: number;
+  totalSessions: number;
+  totalPartOrders: number;
   totalCustomers: number;
-  averageOrderValue: number;
+  averageSessionValue: number;
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
-    totalOrders: 0,
+    totalSessions: 0,
+    totalPartOrders: 0,
     totalCustomers: 0,
-    averageOrderValue: 0
+    averageSessionValue: 0
   });
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'menu'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [menuForm, setMenuForm] = useState({
@@ -54,29 +82,104 @@ export default function AdminDashboard() {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Calculate stats from mock data
-      const paidOrders = mockOrders.filter(o => o.status !== 'cancelled');
-      const totalRevenue = paidOrders.reduce((sum, order) => sum + order.total_amount, 0);
-      const uniqueCustomers = new Set(paidOrders.map(o => o.customer_id)).size;
-      const averageOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
+      // Mock table sessions data (in real app, this would come from database)
+      const mockTableSessions: TableSession[] = [
+        {
+          table_number: 5,
+          customer_name: 'Smith Family',
+          part_orders: [
+            {
+              id: 'part-1',
+              table_number: 5,
+              items: [
+                { item: mockMenuItems[0], quantity: 2 },
+                { item: mockMenuItems[1], quantity: 1 }
+              ],
+              status: 'served',
+              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
+            },
+            {
+              id: 'part-2',
+              table_number: 5,
+              items: [
+                { item: mockMenuItems[4], quantity: 1 },
+                { item: mockMenuItems[8], quantity: 2 }
+              ],
+              status: 'served',
+              created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 14 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 85.95,
+          status: 'closed',
+          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+          payment_status: 'paid'
+        },
+        {
+          table_number: 8,
+          customer_name: 'Johnson Party',
+          part_orders: [
+            {
+              id: 'part-3',
+              table_number: 8,
+              items: [
+                { item: mockMenuItems[2], quantity: 3 },
+                { item: mockMenuItems[11], quantity: 3 }
+              ],
+              status: 'preparing',
+              created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 9 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 71.94,
+          status: 'active',
+          created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+          payment_status: 'pending'
+        },
+        {
+          table_number: 12,
+          customer_name: 'Williams Couple',
+          part_orders: [
+            {
+              id: 'part-4',
+              table_number: 12,
+              items: [
+                { item: mockMenuItems[3], quantity: 2 },
+                { item: mockMenuItems[10], quantity: 2 }
+              ],
+              status: 'ready',
+              created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 4 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 75.96,
+          status: 'active',
+          created_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+          payment_status: 'pending'
+        }
+      ];
+      
+      // Calculate stats from table sessions
+      const paidSessions = mockTableSessions.filter(s => s.payment_status === 'paid');
+      const totalRevenue = paidSessions.reduce((sum, session) => sum + session.total_amount, 0);
+      const totalPartOrders = mockTableSessions.reduce((sum, session) => sum + session.part_orders.length, 0);
+      const uniqueCustomers = new Set(mockTableSessions.map(s => s.customer_name)).size;
+      const averageSessionValue = paidSessions.length > 0 ? totalRevenue / paidSessions.length : 0;
 
       setStats({
         totalRevenue,
-        totalOrders: paidOrders.length,
+        totalSessions: paidSessions.length,
+        totalPartOrders,
         totalCustomers: uniqueCustomers,
-        averageOrderValue
+        averageSessionValue
       });
 
-      // Get recent orders with customer info
-      const recentOrdersWithCustomers = mockOrders
-        .map(order => ({
-          ...order,
-          customer: mockUsers.find(user => user.id === order.customer_id)
-        }))
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10);
+      // Sort sessions by creation time
+      const sortedSessions = mockTableSessions
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       
-      setRecentOrders(recentOrdersWithCustomers as any);
+      setTableSessions(sortedSessions);
       
       // Set menu items
       const sortedMenuItems = [...mockMenuItems].sort((a, b) => {
@@ -180,19 +283,48 @@ export default function AdminDashboard() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getPartOrderStatusIcon = (status: PartOrder['status']) => {
     switch (status) {
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-50';
-      case 'confirmed':
+      case 'draft':
+        return <Clock className="h-3 w-3 text-gray-500" />;
+      case 'sent_to_kitchen':
+        return <Printer className="h-3 w-3 text-blue-500" />;
+      case 'preparing':
+        return <Coffee className="h-3 w-3 text-orange-500" />;
+      case 'ready':
+        return <CheckCircle className="h-3 w-3 text-green-500" />;
+      case 'served':
+        return <Utensils className="h-3 w-3 text-purple-500" />;
+      default:
+        return <Clock className="h-3 w-3 text-gray-500" />;
+    }
+  };
+
+  const getPartOrderStatusColor = (status: PartOrder['status']) => {
+    switch (status) {
+      case 'draft':
+        return 'text-gray-600 bg-gray-50';
+      case 'sent_to_kitchen':
         return 'text-blue-600 bg-blue-50';
       case 'preparing':
         return 'text-orange-600 bg-orange-50';
       case 'ready':
-      case 'delivered':
         return 'text-green-600 bg-green-50';
-      case 'cancelled':
-        return 'text-red-600 bg-red-50';
+      case 'served':
+        return 'text-purple-600 bg-purple-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'text-yellow-600 bg-yellow-50';
+      case 'ready_to_close':
+        return 'text-blue-600 bg-blue-50';
+      case 'closed':
+        return 'text-green-600 bg-green-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -221,7 +353,7 @@ export default function AdminDashboard() {
           <nav className="flex space-x-8 px-6">
             {[
               { key: 'overview', label: 'Overview' },
-              { key: 'orders', label: 'Recent Orders' },
+              { key: 'sessions', label: 'Table Sessions' },
               { key: 'menu', label: 'Menu Management' }
             ].map((tab) => (
               <button
