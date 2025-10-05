@@ -367,7 +367,7 @@ const ServerDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <User className="h-8 w-8 mr-3 text-blue-600" />
+          <User className="h-8 w-8 mr-3 text-amber-600" />
           Server Dashboard
         </h1>
         <div className="text-sm text-gray-600">
@@ -388,7 +388,7 @@ const ServerDashboard: React.FC = () => {
                 onClick={() => setActiveTab(tab.key as any)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-amber-500 text-amber-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } transition-colors`}
               >
@@ -414,7 +414,7 @@ const ServerDashboard: React.FC = () => {
                   placeholder="Search menu items..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -434,13 +434,13 @@ const ServerDashboard: React.FC = () => {
                         </div>
                         <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                         <div className="mt-2">
-                          <p className="text-lg font-bold text-blue-600">£{item.price.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-amber-600">£{item.price.toFixed(2)}</p>
                           <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
                         </div>
                       </div>
                       <button
                         onClick={() => addToCart(item)}
-                        className="ml-4 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                        className="ml-4 p-2 bg-amber-600 text-white rounded-full hover:bg-amber-700 transition-colors"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -466,17 +466,17 @@ const ServerDashboard: React.FC = () => {
                             </div>
                             <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                             <div className="mt-2">
-                              <p className="text-lg font-bold text-blue-600">£{item.price.toFixed(2)}</p>
-                              <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
+                              <p className="text-lg font-bold text-amber-600">£{item.price.toFixed(2)}</p>
+                          <p className="text-amber-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => addToCart(item)}
-                            className="ml-4 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                            className="ml-4 p-2 bg-amber-600 text-white rounded-full hover:bg-amber-700 transition-colors"
                           >
                             <Plus className="h-4 w-4" />
                           </button>
-                        </div>
+                          <span className="font-medium text-amber-600">{cartItem.quantity}</span>
                       </div>
                     ))}
                   </div>
@@ -488,18 +488,18 @@ const ServerDashboard: React.FC = () => {
           {/* Part Order Cart */}
           <div className="space-y-6">
             {/* Payment Gateway Promotion */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200">
+            <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg shadow-sm border border-amber-200">
               <div className="p-4">
                 <div className="flex items-center mb-2">
-                  <Shield className="h-5 w-5 text-blue-600 mr-2" />
-                  <h3 className="font-semibold text-blue-800">Secure Payment Gateway</h3>
+                  <Shield className="h-5 w-5 text-amber-600 mr-2" />
+                  <h3 className="font-semibold text-amber-800">Secure Payment Gateway</h3>
                 </div>
-                <p className="text-sm text-blue-700 mb-3">
+                <p className="text-sm text-amber-700 mb-3">
                   Enable secure payment processing with Stripe Terminal integration.
                 </p>
                 <Link
                   to="/payment-gateway"
-                  className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors"
                 >
                   Learn More
                 </Link>
@@ -527,7 +527,7 @@ const ServerDashboard: React.FC = () => {
                       min="1"
                       value={selectedTable}
                       onChange={(e) => setSelectedTable(parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     />
                   </div>
                   <div>
@@ -538,7 +538,7 @@ const ServerDashboard: React.FC = () => {
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                       placeholder="Enter customer name"
                     />
                   </div>
@@ -583,7 +583,7 @@ const ServerDashboard: React.FC = () => {
                           value={specialInstructions}
                           onChange={(e) => setSpecialInstructions(e.target.value)}
                           rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                           placeholder="Any special requests for kitchen..."
                         />
                       </div>
@@ -603,7 +603,7 @@ const ServerDashboard: React.FC = () => {
                               </div>
                               <div className="flex justify-between items-center font-bold text-lg border-t pt-2">
                                 <span>Total:</span>
-                                <span className="text-blue-600">£{cartTotals.total.toFixed(2)}</span>
+                                <span className="text-amber-600">£{cartTotals.total.toFixed(2)}</span>
                               </div>
                             </>
                           );
@@ -613,7 +613,7 @@ const ServerDashboard: React.FC = () => {
                       <button
                         onClick={sendPartOrder}
                         disabled={loading || !customerName.trim()}
-                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-medium"
+                        className="w-full bg-amber-600 text-white py-3 px-4 rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-medium"
                       >
                         <Printer className="h-4 w-4 mr-2" />
                         {loading ? 'Sending to Kitchen...' : 'Send to Kitchen'}
@@ -658,6 +658,7 @@ const ServerDashboard: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-lg text-blue-600">
+                      <div className="font-bold text-lg text-amber-600">
                         £{session.total_amount.toFixed(2)}
                       </div>
                       <div className="text-xs text-gray-500">
@@ -708,7 +709,7 @@ const ServerDashboard: React.FC = () => {
                           {partOrder.status === 'sent_to_kitchen' && (
                             <button
                               onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'preparing')}
-                              className="w-full mt-2 bg-orange-600 text-white py-1 px-2 rounded text-xs hover:bg-orange-700 transition-colors"
+                              className="w-full mt-2 bg-amber-600 text-white py-1 px-2 rounded text-xs hover:bg-amber-700 transition-colors"
                             >
                               Mark Preparing
                             </button>
@@ -751,7 +752,7 @@ const ServerDashboard: React.FC = () => {
                         
                         <button
                           onClick={() => handleInPersonPayment(session)}
-                          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center text-sm font-medium"
+                          className="w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 transition-colors flex items-center justify-center text-sm font-medium"
                         >
                           <DollarSign className="h-4 w-4 mr-2" />
                           Pay with Terminal

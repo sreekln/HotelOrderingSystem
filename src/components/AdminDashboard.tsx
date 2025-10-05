@@ -376,7 +376,7 @@ export default function AdminDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-md">
@@ -395,8 +395,8 @@ export default function AdminDashboard() {
                   <ShoppingBag className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                  <p className="text-sm font-medium text-gray-600">Table Sessions</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalSessions}</p>
                 </div>
               </div>
             </div>
@@ -407,7 +407,19 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                  <p className="text-sm font-medium text-gray-600">Part Orders</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalPartOrders}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-indigo-100 rounded-md">
+                  <Users className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Customers</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalCustomers}</p>
                 </div>
               </div>
@@ -419,32 +431,41 @@ export default function AdminDashboard() {
                   <TrendingUp className="h-6 w-6 text-orange-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
-                  <p className="text-2xl font-bold text-gray-900">£{stats.averageOrderValue.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-gray-600">Avg Session Value</p>
+                  <p className="text-2xl font-bold text-gray-900">£{stats.averageSessionValue.toFixed(2)}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Recent Orders Preview */}
+          {/* Recent Sessions Preview */}
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="p-6 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Recent Table Sessions</h3>
             </div>
             <div className="p-6">
               <div className="space-y-3">
-                {recentOrders.slice(0, 5).map((order) => (
-                  <div key={order.id} className="flex justify-between items-center py-2">
+                {tableSessions.slice(0, 5).map((session) => (
+                  <div key={`${session.table_number}-${session.created_at}`} className="flex justify-between items-center py-2">
                     <div>
-                      <p className="font-medium">Order #{order.id.slice(-6)}</p>
+                      <p className="font-medium">Table {session.table_number}</p>
                       <p className="text-sm text-gray-500">
-                        {(order as any).customer?.full_name} • {format(new Date(order.created_at), 'MMM dd, HH:mm')}
+                        {session.customer_name} • {session.part_orders.length} part orders • {format(new Date(session.created_at), 'MMM dd, HH:mm')}
                       </p>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className="font-semibold">£{order.total_amount.toFixed(2)}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status}
+                      <span className="font-semibold">£{session.total_amount.toFixed(2)}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                        {session.status.replace('_', ' ')}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        session.payment_status === 'paid' 
+                          ? 'text-green-600 bg-green-50'
+                          : session.payment_status === 'pending'
+                          ? 'text-yellow-600 bg-yellow-50'
+                          : 'text-red-600 bg-red-50'
+                      }`}>
+                        {session.payment_status || 'pending'}
                       </span>
                     </div>
                   </div>
@@ -455,79 +476,79 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {activeTab === 'orders' && (
+      {activeTab === 'sessions' && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">All Orders</h3>
+            <h3 className="text-lg font-semibold text-gray-900">All Table Sessions</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Order ID
+                    Table & Customer
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
+                    Part Orders
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Subtotal
+                    Total Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tax
+                    Session Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    Payment Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    Created
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentOrders.map((order) => (
-                  <tr key={order.id}>
+                {tableSessions.map((session) => (
+                  <tr key={`${session.table_number}-${session.created_at}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{order.id.slice(-6)} • Table {order.table_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {(order as any).customer?.full_name}
+                      Table {session.table_number}
+                      <div className="text-xs text-gray-500">{session.customer_name}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      £{order.subtotal.toFixed(2)}
+                      <div className="space-y-1">
+                        {session.part_orders.map((partOrder, index) => (
+                          <div key={partOrder.id} className="flex items-center space-x-2">
+                            <span className="text-xs">#{index + 1}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
+                              {getPartOrderStatusIcon(partOrder.status)}
+                              <span className="ml-1">{partOrder.status.replace('_', ' ')}</span>
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {partOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      £{order.tax_amount.toFixed(2)}
+                      £{session.total_amount.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      £{order.total_amount.toFixed(2)}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                        {session.status.replace('_', ' ')}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        order.payment_status === 'paid' 
+                        session.payment_status === 'paid' 
                           ? 'text-green-600 bg-green-50'
-                          : order.payment_status === 'pending'
+                          : session.payment_status === 'pending'
                           ? 'text-yellow-600 bg-yellow-50'
                           : 'text-red-600 bg-red-50'
                       }`}>
-                        {order.payment_status === 'pending' ? 'Payment Pending' : 
-                         order.payment_status === 'paid' ? 'Paid' : 
-                         order.payment_status === 'failed' ? 'Payment Failed' : order.payment_status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status}
+                        {session.payment_status || 'pending'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}
+                      {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
                     </td>
                   </tr>
                 ))}
