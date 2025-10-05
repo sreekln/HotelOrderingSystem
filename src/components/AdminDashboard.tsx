@@ -333,6 +333,39 @@ export default function AdminDashboard() {
           <Settings className="h-8 w-8 mr-3 text-purple-600" />
           Admin Dashboard
         </h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-600">Filter:</span>
+            <div className="flex space-x-1">
+              {[
+                { key: 'daily', label: 'Today' },
+                { key: 'weekly', label: 'This Week' },
+                { key: 'monthly', label: 'This Month' },
+                { key: 'all', label: 'All Time' }
+              ].map((filter) => (
+                <button
+                  key={filter.key}
+                  onClick={() => setDateFilter(filter.key as DateFilter)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    dateFilter === filter.key
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={exportToExcel}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -371,7 +404,9 @@ export default function AdminDashboard() {
                   <DollarSign className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Revenue {getFilterLabel()}
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">£{stats.totalRevenue.toFixed(2)}</p>
                 </div>
               </div>
@@ -383,7 +418,9 @@ export default function AdminDashboard() {
                   <ShoppingBag className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Table Sessions</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Table Sessions {getFilterLabel()}
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalSessions}</p>
                 </div>
               </div>
@@ -395,7 +432,9 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Part Orders</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Part Orders {getFilterLabel()}
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalPartOrders}</p>
                 </div>
               </div>
@@ -407,7 +446,9 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Customers</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Customers {getFilterLabel()}
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalCustomers}</p>
                 </div>
               </div>
@@ -419,7 +460,9 @@ export default function AdminDashboard() {
                   <TrendingUp className="h-6 w-6 text-orange-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Avg Session Value</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Avg Session Value {getFilterLabel()}
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">£{stats.averageSessionValue.toFixed(2)}</p>
                 </div>
               </div>
