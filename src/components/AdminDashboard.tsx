@@ -171,7 +171,7 @@ export default function AdminDashboard() {
               orderItem.quantity,
               orderItem.item.price,
               `${orderItem.item.tax_rate}%`,
-          company: 'Lush & Hush',
+              orderItem.item.company,
               format(new Date(partOrder.created_at), 'MMM dd, yyyy HH:mm')
             ]);
           });
