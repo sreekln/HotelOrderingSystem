@@ -467,7 +467,7 @@ const ServerDashboard: React.FC = () => {
                             <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                             <div className="mt-2">
                               <p className="text-lg font-bold text-amber-600">£{item.price.toFixed(2)}</p>
-                          <p className="text-amber-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
+                              <p className="text-xs text-gray-500">Tax: {item.tax_rate}%</p>
                             </div>
                           </div>
                           <button
@@ -476,7 +476,6 @@ const ServerDashboard: React.FC = () => {
                           >
                             <Plus className="h-4 w-4" />
                           </button>
-                          <span className="font-medium text-amber-600">{cartItem.quantity}</span>
                       </div>
                     ))}
                   </div>
