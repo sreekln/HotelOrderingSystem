@@ -476,6 +476,7 @@ const ServerDashboard: React.FC = () => {
                           >
                             <Plus className="h-4 w-4" />
                           </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -552,7 +553,7 @@ const ServerDashboard: React.FC = () => {
                         <div key={cartItem.item.id} className="flex justify-between items-center">
                           <div className="flex-1">
                             <p className="font-medium text-sm">{cartItem.item.name}</p>
-                            <p className="text-blue-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
+                            <p className="text-amber-600 font-semibold">£{cartItem.item.price.toFixed(2)}</p>
                           </div>
                           <div className="flex items-center space-x-2">
                             <button
@@ -561,7 +562,7 @@ const ServerDashboard: React.FC = () => {
                             >
                               <Minus className="h-3 w-3" />
                             </button>
-                            <span className="font-medium">{cartItem.quantity}</span>
+                            <span className="font-medium text-amber-600">{cartItem.quantity}</span>
                             <button
                               onClick={() => updateCartQuantity(cartItem.item.id, 1)}
                               className="p-1 hover:bg-gray-100 rounded"
@@ -656,7 +657,6 @@ const ServerDashboard: React.FC = () => {
                       </span>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg text-blue-600">
                       <div className="font-bold text-lg text-amber-600">
                         £{session.total_amount.toFixed(2)}
                       </div>
