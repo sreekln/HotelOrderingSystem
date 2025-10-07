@@ -23,4 +23,20 @@ pool.on('error', (err) => {
   process.exit(-1);
 });
 
+// Test database connection on startup
+const testConnection = async () => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW()');
+    console.log('Database connection test successful:', result.rows[0].now);
+    client.release();
+  } catch (err) {
+    console.error('Database connection test failed:', err);
+    process.exit(1);
+  }
+};
+
+// Test connection on startup
+testConnection();
+
 module.exports = pool;

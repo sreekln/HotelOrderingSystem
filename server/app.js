@@ -9,6 +9,9 @@ const authRoutes = require('./routes/auth');
 const menuRoutes = require('./routes/menu');
 const orderRoutes = require('./routes/orders');
 const stripeRoutes = require('./routes/stripe');
+const companyRoutes = require('./routes/companies');
+const tableSessionRoutes = require('./routes/tableSessions');
+const partOrderRoutes = require('./routes/partOrders');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,6 +38,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/stripe', stripeRoutes);
+app.use('/api/companies', companyRoutes);
+app.use('/api/table-sessions', tableSessionRoutes);
+app.use('/api/part-orders', partOrderRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

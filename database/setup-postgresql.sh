@@ -42,33 +42,11 @@ database_exists() {
     psql -h $DB_HOST -p $DB_PORT -U $DB_USER -lqt | cut -d \| -f 1 | grep -qw $DB_NAME
 }
 
-# Function to create database
-create_database() {
-    echo -e "${YELLOW}Creating database: $DB_NAME${NC}"
-    if database_exists; then
-        echo -e "${YELLOW}Database $DB_NAME already exists${NC}"
-        read -p "Do you want to recreate it? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}Dropping existing database...${NC}"
-            dropdb -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME
-            echo -e "${YELLOW}Creating new database...${NC}"
-            createdb -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME
-            echo -e "${GREEN}✓ Database recreated${NC}"
-        else
-            echo -e "${YELLOW}Using existing database${NC}"
-        fi
-    else
-        createdb -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME
-        echo -e "${GREEN}✓ Database created${NC}"
-    fi
-}
-
 # Function to run SQL schema
 run_schema() {
     echo -e "${YELLOW}Running PostgreSQL schema...${NC}"
     if [ -f "database/postgresql-schema.sql" ]; then
-        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f database/postgresql-schema.sql
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -f database/postgresql-schema.sql
         echo -e "${GREEN}✓ Schema applied successfully${NC}"
     else
         echo -e "${RED}Error: database/postgresql-schema.sql not found${NC}"
@@ -148,8 +126,21 @@ main() {
     
     # Run setup steps
     check_postgresql
-    create_database
-    run_schema
+    
+    if database_exists; then
+        echo -e "${YELLOW}Database $DB_NAME already exists${NC}"
+        read -p "Do you want to recreate it? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${YELLOW}Recreating database...${NC}"
+            run_schema
+        else
+            echo -e "${YELLOW}Using existing database${NC}"
+        fi
+    else
+        run_schema
+    fi
+    
     verify_installation
     
     echo -e "${GREEN}======================================================${NC}"

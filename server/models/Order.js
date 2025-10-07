@@ -53,82 +53,31 @@ class Order {
   }
 
   static async findAll(filters = {}) {
-    let query = `
-      SELECT o.*, u.full_name as customer_name,
-             json_agg(
-               json_build_object(
-                 'id', oi.id,
-                 'menu_item_id', oi.menu_item_id,
-                 'quantity', oi.quantity,
-                 'price', oi.price,
-                 'menu_item', json_build_object(
-                   'id', mi.id,
-                   'name', mi.name,
-                   'description', mi.description,
-                   'price', mi.price,
-                   'category', mi.category,
-                   'company', mi.company,
-                   'tax_rate', mi.tax_rate,
-                   'food_category', mi.food_category
-                 )
-               )
-             ) as order_items
-      FROM orders o
-      LEFT JOIN users u ON o.customer_id = u.id
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.deleted_at IS NULL
-    `;
+    let query = 'SELECT * FROM order_details WHERE 1=1';
     
     const params = [];
     let paramCount = 0;
     
     if (filters.status) {
       paramCount++;
-      query += ` AND o.status = $${paramCount}`;
+      query += ` AND status = $${paramCount}`;
       params.push(filters.status);
     }
     
     if (filters.customer_id) {
       paramCount++;
-      query += ` AND o.customer_id = $${paramCount}`;
+      query += ` AND customer_id = $${paramCount}`;
       params.push(filters.customer_id);
     }
     
-    query += ` GROUP BY o.id, u.full_name ORDER BY o.created_at DESC`;
+    query += ` ORDER BY created_at DESC`;
     
     const result = await pool.query(query, params);
     return result.rows;
   }
 
   static async findById(id) {
-    const query = `
-      SELECT o.*, u.full_name as customer_name,
-             json_agg(
-               json_build_object(
-                 'id', oi.id,
-                 'menu_item_id', oi.menu_item_id,
-                 'quantity', oi.quantity,
-                 'price', oi.price,
-                 'menu_item', json_build_object(
-                   'id', mi.id,
-                   'name', mi.name,
-                   'description', mi.description,
-                   'price', mi.price,
-                   'category', mi.category,
-                   'company', mi.company,
-                   'tax_rate', mi.tax_rate,
-                   'food_category', mi.food_category
-                 )
-               )
-             ) as order_items
-      FROM orders o
-      LEFT JOIN users u ON o.customer_id = u.id
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.id = $1 AND o.deleted_at IS NULL
-      GROUP BY o.id, u.full_name
-    `;
+    const query = 'SELECT * FROM order_details WHERE id = $1';
     
     const result = await pool.query(query, [id]);
     return result.rows[0];
@@ -143,6 +92,31 @@ class Order {
   static async updatePaymentStatus(id, payment_status) {
     const query = 'UPDATE orders SET payment_status = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
     const result = await pool.query(query, [payment_status, id]);
+    return result.rows[0];
+  }
+
+  static async getOrdersByDateRange(startDate, endDate) {
+    const query = `
+      SELECT * FROM order_details 
+      WHERE created_at >= $1 AND created_at <= $2 
+      ORDER BY created_at DESC
+    `;
+    const result = await pool.query(query, [startDate, endDate]);
+    return result.rows;
+  }
+
+  static async getOrderStats() {
+    const query = `
+      SELECT 
+        COUNT(*) as total_orders,
+        SUM(total_amount) as total_revenue,
+        AVG(total_amount) as average_order_value,
+        COUNT(CASE WHEN status = 'delivered' THEN 1 END) as completed_orders,
+        COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as paid_orders
+      FROM orders 
+      WHERE deleted_at IS NULL
+    `;
+    const result = await pool.query(query);
     return result.rows[0];
   }
 }

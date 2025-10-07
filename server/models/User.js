@@ -35,6 +35,29 @@ class User {
     const query = 'UPDATE users SET last_login = NOW() WHERE id = $1';
     await pool.query(query, [id]);
   }
+
+  static async getAllUsers() {
+    const query = 'SELECT id, email, full_name, role, created_at, last_login FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC';
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  static async updateUser(id, userData) {
+    const { full_name, role } = userData;
+    const query = `
+      UPDATE users 
+      SET full_name = $1, role = $2, updated_at = NOW()
+      WHERE id = $3 AND deleted_at IS NULL
+      RETURNING id, email, full_name, role, created_at, updated_at
+    `;
+    const result = await pool.query(query, [full_name, role, id]);
+    return result.rows[0];
+  }
+
+  static async deleteUser(id) {
+    const query = 'UPDATE users SET deleted_at = NOW() WHERE id = $1';
+    await pool.query(query, [id]);
+  }
 }
 
 module.exports = User;
