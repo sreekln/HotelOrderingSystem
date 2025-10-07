@@ -1,6 +1,6 @@
-# Hotel Ordering System Database
+# Hotel Ordering System PostgreSQL Database
 
-This directory contains the database schema and related files for the Hotel Ordering System.
+This directory contains the PostgreSQL database schema and related files for the Hotel Ordering System.
 
 ## 📁 Files
 
@@ -10,24 +10,23 @@ Complete database schema creation script including:
 - **Types**: Enums for order status, payment status, user roles
 - **Security**: Row Level Security (RLS) policies
 - **Indexes**: Performance optimization
-- **Views**: Common query patterns
 - **Sample Data**: Development and testing data
 
 ## 🚀 Quick Setup
 
-### Option 1: Automated Setup (Recommended)
+### Automated Setup (Recommended)
 ```bash
 # Make script executable and run
 chmod +x database/setup-postgresql.sh
 ./database/setup-postgresql.sh
 ```
 
-### Option 2: Manual PostgreSQL Setup
+### Manual PostgreSQL Setup
 ```bash
 # Create database
 createdb hotel_ordering_system
 
-# Run the optimized PostgreSQL schema
+# Run the PostgreSQL schema
 psql -d hotel_ordering_system -f database/postgresql-schema.sql
 ```
 
@@ -103,15 +102,13 @@ psql -d hotel_ordering_system -f database/postgresql-schema.sql
 ### Environment Variables
 Make sure these are set in your application:
 ```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=hotel_ordering_system
+DB_USER=postgres
+DB_PASSWORD=your_password
+VITE_API_URL=http://localhost:3001/api
 ```
-
-### Stripe Integration
-The schema includes existing Stripe tables:
-- `stripe_customers`
-- `stripe_subscriptions` 
-- `stripe_orders`
 
 ## 📈 Sample Data
 
@@ -137,64 +134,56 @@ The schema includes sample data for development:
 ### **Backup**
 ```bash
 # Create backup
-pg_dump -h your-host -U your-user your-database > backup.sql
+pg_dump -h localhost -U postgres hotel_ordering_system > backup.sql
 
 # Restore backup
-psql -h your-host -U your-user -d your-database < backup.sql
+psql -h localhost -U postgres -d hotel_ordering_system < backup.sql
 ```
 
 ### **Migrations**
-For schema changes, create migration files in `supabase/migrations/`:
+For schema changes, create migration files in `database/migrations/`:
 ```sql
 -- Example migration: add_column_to_orders.sql
 ALTER TABLE orders ADD COLUMN delivery_notes TEXT;
 ```
 
 ### **Monitoring**
-- Monitor query performance with `EXPLAIN ANALYZE`
-- Check index usage with `pg_stat_user_indexes`
-- Monitor table sizes with `pg_size_pretty(pg_total_relation_size('table_name'))`
+- Monitor query performance: `EXPLAIN ANALYZE SELECT ...`
+- Check index usage: `SELECT * FROM pg_stat_user_indexes`
+- Monitor table sizes: `SELECT pg_size_pretty(pg_total_relation_size('table_name'))`
 
 ## 🔍 Troubleshooting
 
 ### Common Issues
 
-#### **RLS Policies**
+#### **Connection Issues**
 ```sql
--- Check if RLS is enabled
-SELECT schemaname, tablename, rowsecurity 
-FROM pg_tables 
-WHERE schemaname = 'public';
-
--- View existing policies
-SELECT * FROM pg_policies WHERE schemaname = 'public';
+-- Test database connection
+SELECT version();
+SELECT current_database();
 ```
 
 #### **Performance Issues**
 ```sql
--- Check slow queries
-SELECT query, mean_time, calls 
-FROM pg_stat_statements 
-ORDER BY mean_time DESC 
-LIMIT 10;
+-- Check table statistics
+SELECT schemaname, tablename, n_tup_ins, n_tup_upd, n_tup_del 
+FROM pg_stat_user_tables;
 
 -- Analyze table statistics
 ANALYZE table_name;
 ```
 
-#### **Connection Issues**
-- Verify Supabase project URL and keys
-- Check database connection limits
-- Ensure proper SSL configuration
+#### **Authentication Issues**
+- Verify JWT_SECRET is set in environment
+- Check user credentials in database
+- Ensure proper password hashing
 
 ## 📞 Support
 
 For database-related issues:
-1. Check Supabase dashboard logs
-2. Review RLS policies for access issues
-3. Monitor performance metrics
-4. Consult Supabase documentation
-
----
-
+1. Check PostgreSQL logs
+2. Verify database connection settings
+3. Monitor query performance
+# Hotel Ordering System PostgreSQL Database
+4. Check application server logs
 🎉 **Your Hotel Ordering System database is ready for production!**

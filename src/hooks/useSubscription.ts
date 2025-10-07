@@ -1,5 +1,7 @@
-// This hook has been removed - using PostgreSQL with Express API instead
-// Subscription functionality moved to backend API
+// Subscription functionality has been removed
+// This application now uses PostgreSQL with Express.js API
+// Payment functionality is handled through Stripe integration
+
 export const useSubscription = () => {
   return {
     subscription: null,

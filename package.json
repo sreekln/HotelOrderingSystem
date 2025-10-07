@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "cd server && node app.js",
+    "dev:server": "cd server && npm run dev",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "setup:db": "chmod +x database/setup-postgresql.sh && ./database/setup-postgresql.sh",
     "build": "vite build",
