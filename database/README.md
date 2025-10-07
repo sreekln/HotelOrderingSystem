@@ -35,7 +35,7 @@ psql -d hotel_ordering_system -f database/postgresql-schema.sql
 ### Core Tables
 
 #### **users**
-- User profiles extending Supabase auth
+- User profiles extending auth
 - Roles: server, kitchen, admin, customer
 - Soft delete support
 
