@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
+import { MenuItem, calculateCartTotal } from '../lib/mockData';
+import { apiClient } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -47,9 +48,11 @@ const ServerDashboard: React.FC = () => {
 
   const fetchMenuItems = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const availableItems = mockMenuItems.filter(item => item.available);
-      setMenuItems(availableItems);
+      const response = await apiClient.getMenuItems();
+      if (response.data) {
+        const availableItems = response.data.filter(item => item.available);
+        setMenuItems(availableItems);
+      }
     } catch (error) {
       console.error('Error fetching menu items:', error);
       toast.error('Failed to load menu items');
@@ -60,30 +63,10 @@ const ServerDashboard: React.FC = () => {
 
   const fetchTableSessions = async () => {
     try {
-      // Mock table sessions - in real app this would come from database
-      const mockSessions: TableSession[] = [
-        {
-          table_number: 5,
-          customer_name: 'Smith Family',
-          part_orders: [
-            {
-              id: 'part-1',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[0], quantity: 2 },
-                { item: mockMenuItems[1], quantity: 1 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 40.97,
-          status: 'active',
-          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
-        }
-      ];
-      setTableSessions(mockSessions);
+      const response = await apiClient.getTableSessions();
+      if (response.data) {
+        setTableSessions(response.data);
+      }
     } catch (error) {
       console.error('Error fetching table sessions:', error);
       toast.error('Failed to load table sessions');
@@ -162,51 +145,50 @@ const ServerDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      const newPartOrder: PartOrder = {
-        id: `part-${Date.now()}`,
-        table_number: selectedTable,
-        items: [...cart],
-        special_instructions: specialInstructions,
-        status: 'draft',
-        created_at: new Date().toISOString()
-      };
-
-      // Print to kitchen
-      const printedOrder = await printToKitchen(newPartOrder);
-
-      // Update or create table session
-      setTableSessions(prev => {
-        const existingSession = prev.find(session => session.table_number === selectedTable);
+      // Check if table session exists
+      const sessionResponse = await apiClient.getActiveTableSession(selectedTable);
+      let sessionId;
+      
+      if (sessionResponse.data) {
+        sessionId = sessionResponse.data.id;
+      } else {
+        // Create new table session
+        const newSessionResponse = await apiClient.createTableSession({
+          table_number: selectedTable,
+          customer_name: customerName
+        });
         
-        if (existingSession) {
-          // Add to existing session
-          const updatedSession = {
-            ...existingSession,
-            part_orders: [...existingSession.part_orders, printedOrder],
-            total_amount: existingSession.total_amount + calculateCartTotal(cart).total
-          };
-          
-          return prev.map(session => 
-            session.table_number === selectedTable ? updatedSession : session
-          );
-        } else {
-          // Create new session
-          const newSession: TableSession = {
-            table_number: selectedTable,
-            customer_name: customerName,
-            part_orders: [printedOrder],
-            total_amount: calculateCartTotal(cart).total,
-            status: 'active',
-            created_at: new Date().toISOString()
-          };
-          
-          return [...prev, newSession];
+        if (newSessionResponse.error) {
+          throw new Error(newSessionResponse.error);
         }
-      });
+        
+        sessionId = newSessionResponse.data.id;
+      }
+      
+      // Create part order
+      const partOrderData = {
+        table_number: selectedTable,
+        items: cart.map(cartItem => ({
+          item: cartItem.item,
+          quantity: cartItem.quantity
+        })),
+        special_instructions: specialInstructions,
+      };
+      
+      const partOrderResponse = await apiClient.addPartOrderToSession(sessionId, partOrderData);
+      if (partOrderResponse.error) {
+        throw new Error(partOrderResponse.error);
+      }
+      
+      // Mark as printed (sent to kitchen)
+      await apiClient.markPartOrderPrinted(partOrderResponse.data.id);
 
       // Clear cart and form
       setCart([]);
       setSpecialInstructions('');
+      
+      // Refresh table sessions
+      fetchTableSessions();
       
       toast.success(`Part order sent to kitchen for Table ${selectedTable}`);
     } catch (error) {
@@ -219,22 +201,13 @@ const ServerDashboard: React.FC = () => {
 
   const updatePartOrderStatus = async (sessionIndex: number, partOrderId: string, newStatus: PartOrder['status']) => {
     try {
-      setTableSessions(prev => {
-        const updated = [...prev];
-        const session = updated[sessionIndex];
-        const partOrderIndex = session.part_orders.findIndex(po => po.id === partOrderId);
-        
-        if (partOrderIndex !== -1) {
-          updated[sessionIndex] = {
-            ...session,
-            part_orders: session.part_orders.map((po, idx) => 
-              idx === partOrderIndex ? { ...po, status: newStatus } : po
-            )
-          };
-        }
-        
-        return updated;
-      });
+      const response = await apiClient.updatePartOrderStatus(partOrderId, newStatus);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      // Refresh table sessions
+      fetchTableSessions();
       
       toast.success(`Part order status updated to ${newStatus}`);
     } catch (error) {

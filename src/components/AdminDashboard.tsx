@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
+import { MenuItem } from '../lib/mockData';
+import { apiClient } from '../lib/api';
 import { DollarSign, TrendingUp, Users, ShoppingBag, Plus, CreditCard as Edit, Trash2, Settings, CreditCard, Clock, CheckCircle, Printer, Coffee, Utensils, Download, Calendar, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -205,83 +206,9 @@ export default function AdminDashboard() {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Mock table sessions data (in real app, this would come from database)
-      const mockTableSessions: TableSession[] = [
-        {
-          table_number: 5,
-          customer_name: 'Smith Family',
-          part_orders: [
-            {
-              id: 'part-1',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[0], quantity: 2 },
-                { item: mockMenuItems[1], quantity: 1 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
-            },
-            {
-              id: 'part-2',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[4], quantity: 1 },
-                { item: mockMenuItems[8], quantity: 2 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 14 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 85.95,
-          status: 'closed',
-          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-          payment_status: 'paid'
-        },
-        {
-          table_number: 8,
-          customer_name: 'Johnson Party',
-          part_orders: [
-            {
-              id: 'part-3',
-              table_number: 8,
-              items: [
-                { item: mockMenuItems[2], quantity: 3 },
-                { item: mockMenuItems[11], quantity: 3 }
-              ],
-              status: 'preparing',
-              created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 9 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 71.94,
-          status: 'active',
-          created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-          payment_status: 'pending'
-        },
-        {
-          table_number: 12,
-          customer_name: 'Williams Couple',
-          part_orders: [
-            {
-              id: 'part-4',
-              table_number: 12,
-              items: [
-                { item: mockMenuItems[3], quantity: 2 },
-                { item: mockMenuItems[10], quantity: 2 }
-              ],
-              status: 'ready',
-              created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 4 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 75.96,
-          status: 'active',
-          created_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-          payment_status: 'pending'
-        }
-      ];
+      // Fetch table sessions from API
+      const sessionsResponse = await apiClient.getTableSessions();
+      const mockTableSessions = sessionsResponse.data || [];
       
       // Calculate stats from table sessions
       const paidSessions = mockTableSessions.filter(s => s.payment_status === 'paid');
@@ -305,13 +232,16 @@ export default function AdminDashboard() {
       setTableSessions(sortedSessions);
       
       // Set menu items
-      const sortedMenuItems = [...mockMenuItems].sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      setMenuItems(sortedMenuItems);
+      const menuResponse = await apiClient.getMenuItems();
+      if (menuResponse.data) {
+        const sortedMenuItems = [...menuResponse.data].sort((a, b) => {
+          if (a.category !== b.category) {
+            return a.category.localeCompare(b.category);
+          }
+          return a.name.localeCompare(b.name);
+        });
+        setMenuItems(sortedMenuItems);
+      }
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -325,27 +255,25 @@ export default function AdminDashboard() {
     e.preventDefault();
     
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const menuData = {
-        id: editingItem?.id || `menu-${Date.now()}`,
         ...menuForm,
         price: parseFloat(menuForm.price),
         tax_rate: parseFloat(menuForm.tax_rate),
-        created_at: editingItem?.created_at || new Date().toISOString()
       };
 
       if (editingItem) {
         // Update existing item
-        const itemIndex = mockMenuItems.findIndex(item => item.id === editingItem.id);
-        if (itemIndex !== -1) {
-          mockMenuItems[itemIndex] = menuData as MenuItem;
+        const response = await apiClient.updateMenuItem(editingItem.id, menuData);
+        if (response.error) {
+          throw new Error(response.error);
         }
         toast.success('Menu item updated successfully');
       } else {
         // Add new item
-        mockMenuItems.push(menuData as MenuItem);
+        const response = await apiClient.createMenuItem(menuData);
+        if (response.error) {
+          throw new Error(response.error);
+        }
         toast.success('Menu item added successfully');
       }
 
@@ -356,7 +284,7 @@ export default function AdminDashboard() {
         description: '',
         price: '',
         category: 'appetizer',
-        company: '',
+        company: 'Lush & Hush',
         tax_rate: '8.5',
         food_category: 'Cooked',
         available: true
@@ -389,13 +317,9 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Remove item from mock data
-      const itemIndex = mockMenuItems.findIndex(item => item.id === itemId);
-      if (itemIndex !== -1) {
-        mockMenuItems.splice(itemIndex, 1);
+      const response = await apiClient.deleteMenuItem(itemId);
+      if (response.error) {
+        throw new Error(response.error);
       }
       
       toast.success('Menu item deleted successfully');
@@ -906,11 +830,6 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600 capitalize">{item.category} • {item.food_category}</p>
                         <div className="text-xs text-gray-500">
                           <span className="font-medium">{item.company}</span>
-                          {mockCompanies.find(c => c.name === item.company) && (
-                            <span className="ml-1">
-                              • {mockCompanies.find(c => c.name === item.company)?.category}
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="flex space-x-1">
