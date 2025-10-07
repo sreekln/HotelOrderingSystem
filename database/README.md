@@ -15,34 +15,16 @@ Complete database schema creation script including:
 
 ## 🚀 Quick Setup
 
-### Option 1: Supabase Dashboard
-1. Go to your Supabase project dashboard
-2. Navigate to SQL Editor
-3. Copy and paste the contents of `schema.sql`
-4. Click "Run" to execute
-
-### Option 2: Supabase CLI
+### PostgreSQL Setup
 ```bash
-# Install Supabase CLI
-npm install -g supabase
+# Create database
+createdb hotel_ordering_system
 
-# Login to Supabase
-supabase login
-
-# Link to your project
-supabase link --project-ref your-project-ref
-
-# Run the schema
-supabase db reset
-```
-
-### Option 3: PostgreSQL Direct
-```bash
 # Connect to your PostgreSQL database
-psql -h your-host -U your-user -d your-database
+psql -d hotel_ordering_system
 
 # Run the schema file
-\i database/schema.sql
+psql -d hotel_ordering_system -f database/schema.sql
 ```
 
 ## 📊 Database Schema Overview

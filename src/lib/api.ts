@@ -143,6 +143,31 @@ class ApiClient {
       body: JSON.stringify({ payment_status }),
     });
   }
+
+  // Stripe endpoints
+  async createCheckoutSession(params: any) {
+    return this.request('/stripe/checkout', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async createPaymentIntent(params: any) {
+    return this.request('/stripe/payment-intent', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async confirmPaymentIntent(paymentIntentId: string, paymentMethodId: string) {
+    return this.request('/stripe/confirm-payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        payment_intent_id: paymentIntentId,
+        payment_method_id: paymentMethodId,
+      }),
+    });
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
