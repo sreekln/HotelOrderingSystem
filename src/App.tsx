@@ -3,8 +3,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
-import { AuthProvider, useAuth } from './lib/mockAuth';
-import { mockOrders } from './lib/mockData';
+import { AuthProvider, useAuth } from './lib/auth';
 import Layout from './components/Layout';
 import Auth from './components/Auth';
 import ServerDashboard from './components/CustomerDashboard';
@@ -23,15 +22,7 @@ const AppContent: React.FC = () => {
     const orderId = urlParams.get('order');
 
     if (paymentStatus === 'success' && orderId) {
-      // Update the order payment status in mock data
-      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex] = {
-          ...mockOrders[orderIndex],
-          payment_status: 'paid',
-          updated_at: new Date().toISOString()
-        };
-      }
+      // In a real implementation, you would update the order payment status via API
       toast.success('Payment successful! Your order has been paid.');
       // Clean up URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);

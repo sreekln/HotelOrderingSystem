@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, type User } from './supabase';
+import { apiClient } from './api';
 import toast from 'react-hot-toast';
+
+export interface User {
+  id: string;
+  email: string;
+  role: 'server' | 'kitchen' | 'admin';
+  full_name: string;
+  created_at: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -25,55 +33,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
-      } else {
-        setUser(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      setUser(data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      toast.error('Error loading user profile');
-    } finally {
+    // Check for existing token
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      apiClient.setToken(token);
+      // Verify token by making a request (you could add a /me endpoint)
+      setLoading(false);
+    } else {
       setLoading(false);
     }
-  };
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      
+      const response = await apiClient.signIn({ email, password });
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
 
-      if (error) throw error;
+      if (response.data) {
+        const { user, token } = response.data as any;
+        apiClient.setToken(token);
+        setUser(user);
+      }
+      
       toast.success('Successfully signed in!');
     } catch (error: any) {
       toast.error(error.message);
@@ -86,27 +72,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, fullName: string, role = 'customer') => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
+      
+      const response = await apiClient.signUp({
         email,
         password,
+        full_name: fullName,
+        role,
       });
 
-      if (error) throw error;
-
-      if (data.user) {
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email,
-            full_name: fullName,
-            role: role,
-          });
-
-        if (profileError) throw profileError;
+      if (response.error) {
+        throw new Error(response.error);
       }
 
+      if (response.data) {
+        const { user, token } = response.data as any;
+        apiClient.setToken(token);
+        setUser(user);
+      }
+      
       toast.success('Account created successfully!');
     } catch (error: any) {
       toast.error(error.message);
@@ -118,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      apiClient.setToken(null);
+      setUser(null);
       toast.success('Signed out successfully');
     } catch (error: any) {
       toast.error(error.message);
