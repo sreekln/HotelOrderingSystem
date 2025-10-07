@@ -99,6 +99,8 @@ show_connection_info() {
     echo "DB_NAME=$DB_NAME"
     echo "DB_USER=$DB_USER"
     echo "DB_PASSWORD=your_password_here"
+    echo "JWT_SECRET=your-super-secret-jwt-key-change-in-production"
+    echo "VITE_API_URL=http://localhost:3001/api"
 }
 
 # Function to show sample credentials

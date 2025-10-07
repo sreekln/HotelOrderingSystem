@@ -107,7 +107,9 @@ DB_PORT=5432
 DB_NAME=hotel_ordering_system
 DB_USER=postgres
 DB_PASSWORD=your_password
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
 VITE_API_URL=http://localhost:3001/api
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 ```
 
 ## 📈 Sample Data

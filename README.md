@@ -14,7 +14,7 @@ cd server && npm install && cd ..
 ### 3. Environment Configuration
 ```bash
 cp .env.example .env
-# Update .env with your PostgreSQL credentials
+# Update .env with your PostgreSQL credentials and API configuration
 ```
 ### 4. Start Application
 ```bash
