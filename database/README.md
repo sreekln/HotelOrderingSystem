@@ -15,16 +15,20 @@ Complete database schema creation script including:
 
 ## 🚀 Quick Setup
 
-### PostgreSQL Setup
+### Option 1: Automated Setup (Recommended)
+```bash
+# Make script executable and run
+chmod +x database/setup-postgresql.sh
+./database/setup-postgresql.sh
+```
+
+### Option 2: Manual PostgreSQL Setup
 ```bash
 # Create database
 createdb hotel_ordering_system
 
-# Connect to your PostgreSQL database
-psql -d hotel_ordering_system
-
-# Run the schema file
-psql -d hotel_ordering_system -f database/schema.sql
+# Run the optimized PostgreSQL schema
+psql -d hotel_ordering_system -f database/postgresql-schema.sql
 ```
 
 ## 📊 Database Schema Overview
