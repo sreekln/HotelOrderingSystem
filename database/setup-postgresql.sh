@@ -42,11 +42,18 @@ database_exists() {
     psql -h $DB_HOST -p $DB_PORT -U $DB_USER -lqt | cut -d \| -f 1 | grep -qw $DB_NAME
 }
 
+# Function to create database
+create_database() {
+    echo -e "${YELLOW}Creating database $DB_NAME...${NC}"
+    createdb -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME
+    echo -e "${GREEN}✓ Database created successfully${NC}"
+}
+
 # Function to run SQL schema
 run_schema() {
     echo -e "${YELLOW}Running PostgreSQL schema...${NC}"
     if [ -f "database/postgresql-schema.sql" ]; then
-        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -f database/postgresql-schema.sql
+        psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f database/postgresql-schema.sql
         echo -e "${GREEN}✓ Schema applied successfully${NC}"
     else
         echo -e "${RED}Error: database/postgresql-schema.sql not found${NC}"
@@ -60,13 +67,13 @@ verify_installation() {
     echo -e "${YELLOW}Verifying installation...${NC}"
     
     # Check tables
-    TABLE_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';")
+    TABLE_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" | xargs)
     echo -e "${GREEN}✓ Tables created: $TABLE_COUNT${NC}"
     
     # Check sample data
-    USER_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM users;")
-    MENU_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM menu_items;")
-    COMPANY_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM companies;")
+    USER_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM users;" | xargs)
+    MENU_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM menu_items;" | xargs)
+    COMPANY_COUNT=$(psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "SELECT count(*) FROM companies;" | xargs)
     
     echo -e "${GREEN}✓ Sample users: $USER_COUNT${NC}"
     echo -e "${GREEN}✓ Sample menu items: $MENU_COUNT${NC}"
@@ -132,12 +139,17 @@ main() {
         read -p "Do you want to recreate it? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${YELLOW}Recreating database...${NC}"
+            echo -e "${YELLOW}Dropping and recreating database...${NC}"
+            dropdb -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME --if-exists
+            create_database
             run_schema
         else
             echo -e "${YELLOW}Using existing database${NC}"
+            echo -e "${YELLOW}Running schema to ensure it's up to date...${NC}"
+            run_schema
         fi
     else
+        create_database
         run_schema
     fi
     

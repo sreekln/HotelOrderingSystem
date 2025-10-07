@@ -15,7 +15,7 @@ const pool = new Pool({
 
 // Test connection
 pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
+  console.log('✓ Connected to PostgreSQL database');
 });
 
 pool.on('error', (err) => {
@@ -27,11 +27,14 @@ pool.on('error', (err) => {
 const testConnection = async () => {
   try {
     const client = await pool.connect();
-    const result = await client.query('SELECT NOW()');
-    console.log('Database connection test successful:', result.rows[0].now);
+    const result = await client.query('SELECT NOW(), version()');
+    console.log('✓ Database connection test successful');
+    console.log('✓ PostgreSQL version:', result.rows[0].version.split(' ')[0] + ' ' + result.rows[0].version.split(' ')[1]);
+    console.log('✓ Current time:', result.rows[0].now);
     client.release();
   } catch (err) {
-    console.error('Database connection test failed:', err);
+    console.error('✗ Database connection test failed:', err.message);
+    console.error('Please check your database configuration in .env file');
     process.exit(1);
   }
 };

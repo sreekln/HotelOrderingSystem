@@ -144,6 +144,126 @@ class ApiClient {
     });
   }
 
+  // Company endpoints
+  async getCompanies() {
+    return this.request('/companies');
+  }
+
+  async getCompany(id: string) {
+    return this.request(`/companies/${id}`);
+  }
+
+  async createCompany(companyData: any) {
+    return this.request('/companies', {
+      method: 'POST',
+      body: JSON.stringify(companyData),
+    });
+  }
+
+  async updateCompany(id: string, companyData: any) {
+    return this.request(`/companies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(companyData),
+    });
+  }
+
+  async deleteCompany(id: string) {
+    return this.request(`/companies/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Table Session endpoints
+  async getTableSessions(filters?: { status?: string; table_number?: number }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.table_number) params.append('table_number', filters.table_number.toString());
+    
+    const endpoint = `/table-sessions${params.toString() ? `?${params.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async getTableSession(id: string) {
+    return this.request(`/table-sessions/${id}`);
+  }
+
+  async createTableSession(sessionData: any) {
+    return this.request('/table-sessions', {
+      method: 'POST',
+      body: JSON.stringify(sessionData),
+    });
+  }
+
+  async updateTableSessionStatus(id: string, status: string) {
+    return this.request(`/table-sessions/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async updateTableSessionPayment(id: string, payment_status: string) {
+    return this.request(`/table-sessions/${id}/payment`, {
+      method: 'PATCH',
+      body: JSON.stringify({ payment_status }),
+    });
+  }
+
+  async getActiveTableSession(table_number: number) {
+    return this.request(`/table-sessions/table/${table_number}/active`);
+  }
+
+  // Part Order endpoints
+  async getPartOrders(filters?: { status?: string; table_number?: number; table_session_id?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.table_number) params.append('table_number', filters.table_number.toString());
+    if (filters?.table_session_id) params.append('table_session_id', filters.table_session_id);
+    
+    const endpoint = `/part-orders${params.toString() ? `?${params.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async getPartOrder(id: string) {
+    return this.request(`/part-orders/${id}`);
+  }
+
+  async updatePartOrderStatus(id: string, status: string) {
+    return this.request(`/part-orders/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async markPartOrderPrinted(id: string) {
+    return this.request(`/part-orders/${id}/print`, {
+      method: 'PATCH',
+    });
+  }
+
+  async updatePartOrder(id: string, partOrderData: any) {
+    return this.request(`/part-orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(partOrderData),
+    });
+  }
+
+  async deletePartOrder(id: string) {
+    return this.request(`/part-orders/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getKitchenQueue() {
+    return this.request('/part-orders/kitchen/queue');
+  }
+
+  async addPartOrderToSession(sessionId: string, partOrderData: any) {
+    return this.request(`/table-sessions/${sessionId}/part-orders`, {
+      method: 'POST',
+      body: JSON.stringify(partOrderData),
+    });
+  }
+
   // Stripe endpoints
   async createCheckoutSession(params: any) {
     return this.request('/stripe/checkout', {
