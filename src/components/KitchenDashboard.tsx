@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, calculateCartTotal } from '../lib/mockData';
 import { apiClient } from '../lib/api';
-import { Clock, CheckCircle, AlertCircle, ChefHat, Edit, Save, X, Plus, Minus, Trash2, Search } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, ChefHat, CreditCard as Edit, Save, X, Plus, Minus, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
