@@ -1,159 +1,122 @@
-const pool = require('../config/database');
+const { getPool, sql } = require('../config/database');
 
 class TableSession {
   static async create(sessionData) {
-    const { table_number, customer_name } = sessionData;
-    
-    const query = `
-      INSERT INTO table_sessions (table_number, customer_name, status)
-      VALUES ($1, $2, 'active')
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [table_number, customer_name]);
-    return result.rows[0];
+    const { table_number, server_id } = sessionData;
+    const pool = await getPool();
+
+    const result = await pool.request()
+      .input('table_number', sql.Int, table_number)
+      .input('server_id', sql.UniqueIdentifier, server_id)
+      .query(`
+        INSERT INTO table_sessions (table_number, server_id, status, payment_status)
+        OUTPUT INSERTED.*
+        VALUES (@table_number, @server_id, 'active', 'pending')
+      `);
+
+    return result.recordset[0];
   }
 
   static async findAll(filters = {}) {
-    let query = `
-      SELECT ts.*, 
-             COALESCE(
-               json_agg(
-                 json_build_object(
-                   'id', po.id,
-                   'table_number', po.table_number,
-                   'items', po.items,
-                   'special_instructions', po.special_instructions,
-                   'status', po.status,
-                   'created_at', po.created_at,
-                   'updated_at', po.updated_at,
-                   'printed_at', po.printed_at
-                 )
-               ) FILTER (WHERE po.id IS NOT NULL), 
-               '[]'::json
-             ) as part_orders
-      FROM table_sessions ts
-      LEFT JOIN part_orders po ON ts.id = po.table_session_id
-      WHERE ts.deleted_at IS NULL
-    `;
-    
-    const params = [];
-    let paramCount = 0;
-    
+    const pool = await getPool();
+    let query = 'SELECT * FROM table_sessions WHERE 1=1';
+    const request = pool.request();
+
     if (filters.status) {
-      paramCount++;
-      query += ` AND ts.status = $${paramCount}`;
-      params.push(filters.status);
+      query += ' AND status = @status';
+      request.input('status', sql.NVarChar, filters.status);
     }
-    
+
     if (filters.table_number) {
-      paramCount++;
-      query += ` AND ts.table_number = $${paramCount}`;
-      params.push(filters.table_number);
+      query += ' AND table_number = @table_number';
+      request.input('table_number', sql.Int, filters.table_number);
     }
-    
-    query += ` GROUP BY ts.id ORDER BY ts.created_at DESC`;
-    
-    const result = await pool.query(query, params);
-    return result.rows;
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await request.query(query);
+    return result.recordset;
   }
 
   static async findById(id) {
-    const query = `
-      SELECT ts.*, 
-             COALESCE(
-               json_agg(
-                 json_build_object(
-                   'id', po.id,
-                   'table_number', po.table_number,
-                   'items', po.items,
-                   'special_instructions', po.special_instructions,
-                   'status', po.status,
-                   'created_at', po.created_at,
-                   'updated_at', po.updated_at,
-                   'printed_at', po.printed_at
-                 )
-               ) FILTER (WHERE po.id IS NOT NULL), 
-               '[]'::json
-             ) as part_orders
-      FROM table_sessions ts
-      LEFT JOIN part_orders po ON ts.id = po.table_session_id
-      WHERE ts.id = $1 AND ts.deleted_at IS NULL
-      GROUP BY ts.id
-    `;
-    
-    const result = await pool.query(query, [id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .query('SELECT * FROM table_sessions WHERE id = @id');
+
+    return result.recordset[0];
   }
 
   static async findByTableNumber(table_number) {
-    const query = `
-      SELECT ts.*, 
-             COALESCE(
-               json_agg(
-                 json_build_object(
-                   'id', po.id,
-                   'table_number', po.table_number,
-                   'items', po.items,
-                   'special_instructions', po.special_instructions,
-                   'status', po.status,
-                   'created_at', po.created_at,
-                   'updated_at', po.updated_at,
-                   'printed_at', po.printed_at
-                 )
-               ) FILTER (WHERE po.id IS NOT NULL), 
-               '[]'::json
-             ) as part_orders
-      FROM table_sessions ts
-      LEFT JOIN part_orders po ON ts.id = po.table_session_id
-      WHERE ts.table_number = $1 AND ts.deleted_at IS NULL AND ts.status = 'active'
-      GROUP BY ts.id
-      ORDER BY ts.created_at DESC
-      LIMIT 1
-    `;
-    
-    const result = await pool.query(query, [table_number]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('table_number', sql.Int, table_number)
+      .query(`
+        SELECT TOP 1 * FROM table_sessions
+        WHERE table_number = @table_number AND status = 'active'
+        ORDER BY created_at DESC
+      `);
+
+    return result.recordset[0];
   }
 
   static async updateStatus(id, status) {
-    const query = 'UPDATE table_sessions SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
-    const result = await pool.query(query, [status, id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const request = pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .input('status', sql.NVarChar, status);
+
+    let query = 'UPDATE table_sessions SET status = @status';
+
+    if (status === 'closed') {
+      query += ', closed_at = GETDATE()';
+    }
+
+    query += ' OUTPUT INSERTED.* WHERE id = @id';
+
+    const result = await request.query(query);
+    return result.recordset[0];
   }
 
   static async updatePaymentStatus(id, payment_status) {
-    const query = 'UPDATE table_sessions SET payment_status = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
-    const result = await pool.query(query, [payment_status, id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .input('payment_status', sql.NVarChar, payment_status)
+      .query(`
+        UPDATE table_sessions SET payment_status = @payment_status
+        OUTPUT INSERTED.*
+        WHERE id = @id
+      `);
+
+    return result.recordset[0];
   }
 
   static async updateTotal(id) {
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-      
-      // Use the database function to update the total
-      await client.query('SELECT update_table_session_total($1)', [id]);
-      
-      // Get the updated session
-      const result = await client.query('SELECT * FROM table_sessions WHERE id = $1', [id]);
-      
-      await client.query('COMMIT');
-      return result.rows[0];
-      
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .query(`
+        UPDATE ts
+        SET ts.total_amount = (
+          SELECT ISNULL(SUM(poi.subtotal), 0)
+          FROM part_orders po
+          JOIN part_order_items poi ON po.id = poi.part_order_id
+          WHERE po.table_session_id = @id
+        )
+        OUTPUT INSERTED.*
+        FROM table_sessions ts
+        WHERE ts.id = @id
+      `);
+
+    return result.recordset[0];
   }
 
   static async delete(id) {
-    const query = 'UPDATE table_sessions SET deleted_at = NOW() WHERE id = $1';
-    await pool.query(query, [id]);
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .query('DELETE FROM table_sessions WHERE id = @id');
   }
 }
 

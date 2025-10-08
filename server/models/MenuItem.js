@@ -1,76 +1,123 @@
-const pool = require('../config/database');
+const { getPool, sql } = require('../config/database');
 
 class MenuItem {
   static async findAll() {
-    const query = `
-      SELECT * FROM menu_items_with_company
-      WHERE mi.available = true AND mi.deleted_at IS NULL
-      ORDER BY mi.category, mi.name
-    `;
-    const result = await pool.query(query);
-    return result.rows;
+    const pool = await getPool();
+    const result = await pool.request()
+      .query(`
+        SELECT * FROM menu_items
+        WHERE available = 1 AND deleted_at IS NULL
+        ORDER BY category, name
+      `);
+    return result.recordset;
   }
 
   static async findById(id) {
-    const query = `
-      SELECT * FROM menu_items_with_company
-      WHERE mi.id = $1 AND mi.deleted_at IS NULL
-    `;
-    const result = await pool.query(query, [id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .query('SELECT * FROM menu_items WHERE id = @id AND deleted_at IS NULL');
+    return result.recordset[0];
   }
 
   static async create(itemData) {
-    const { name, description, price, category, company, tax_rate, food_category, available = true } = itemData;
-    
-    const query = `
-      INSERT INTO menu_items (name, description, price, category, company, tax_rate, food_category, available)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [name, description, price, category, company, tax_rate, food_category, available]);
-    return result.rows[0];
+    const { name, description, price, category, company, food_category, available = true, image_url } = itemData;
+    const pool = await getPool();
+
+    const result = await pool.request()
+      .input('name', sql.NVarChar, name)
+      .input('description', sql.NVarChar, description)
+      .input('price', sql.Decimal(10, 2), price)
+      .input('category', sql.NVarChar, category)
+      .input('company', sql.NVarChar, company)
+      .input('food_category', sql.NVarChar, food_category)
+      .input('available', sql.Bit, available)
+      .input('image_url', sql.NVarChar, image_url)
+      .query(`
+        INSERT INTO menu_items (name, description, price, category, company, food_category, available, image_url)
+        OUTPUT INSERTED.*
+        VALUES (@name, @description, @price, @category, @company, @food_category, @available, @image_url)
+      `);
+
+    return result.recordset[0];
   }
 
   static async update(id, itemData) {
-    const { name, description, price, category, company, tax_rate, food_category, available } = itemData;
-    
-    const query = `
-      UPDATE menu_items 
-      SET name = $1, description = $2, price = $3, category = $4, company = $5, 
-          tax_rate = $6, food_category = $7, available = $8, updated_at = NOW()
-      WHERE id = $9 AND deleted_at IS NULL
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [name, description, price, category, company, tax_rate, food_category, available, id]);
-    return result.rows[0];
+    const { name, description, price, category, company, food_category, available, image_url } = itemData;
+    const pool = await getPool();
+
+    let query = 'UPDATE menu_items SET ';
+    const updates = [];
+    const request = pool.request().input('id', sql.UniqueIdentifier, id);
+
+    if (name !== undefined) {
+      updates.push('name = @name');
+      request.input('name', sql.NVarChar, name);
+    }
+    if (description !== undefined) {
+      updates.push('description = @description');
+      request.input('description', sql.NVarChar, description);
+    }
+    if (price !== undefined) {
+      updates.push('price = @price');
+      request.input('price', sql.Decimal(10, 2), price);
+    }
+    if (category !== undefined) {
+      updates.push('category = @category');
+      request.input('category', sql.NVarChar, category);
+    }
+    if (company !== undefined) {
+      updates.push('company = @company');
+      request.input('company', sql.NVarChar, company);
+    }
+    if (food_category !== undefined) {
+      updates.push('food_category = @food_category');
+      request.input('food_category', sql.NVarChar, food_category);
+    }
+    if (available !== undefined) {
+      updates.push('available = @available');
+      request.input('available', sql.Bit, available);
+    }
+    if (image_url !== undefined) {
+      updates.push('image_url = @image_url');
+      request.input('image_url', sql.NVarChar, image_url);
+    }
+
+    query += updates.join(', ') + ' OUTPUT INSERTED.* WHERE id = @id AND deleted_at IS NULL';
+
+    const result = await request.query(query);
+    return result.recordset[0];
   }
 
   static async delete(id) {
-    const query = 'UPDATE menu_items SET deleted_at = NOW() WHERE id = $1';
-    await pool.query(query, [id]);
+    const pool = await getPool();
+    await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .query('UPDATE menu_items SET deleted_at = GETDATE() WHERE id = @id');
   }
 
   static async findByCategory(category) {
-    const query = `
-      SELECT * FROM menu_items_with_company
-      WHERE category = $1 AND available = true AND deleted_at IS NULL
-      ORDER BY name
-    `;
-    const result = await pool.query(query, [category]);
-    return result.rows;
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('category', sql.NVarChar, category)
+      .query(`
+        SELECT * FROM menu_items
+        WHERE category = @category AND available = 1 AND deleted_at IS NULL
+        ORDER BY name
+      `);
+    return result.recordset;
   }
 
   static async findByCompany(company) {
-    const query = `
-      SELECT * FROM menu_items_with_company
-      WHERE company = $1 AND available = true AND deleted_at IS NULL
-      ORDER BY category, name
-    `;
-    const result = await pool.query(query, [company]);
-    return result.rows;
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('company', sql.NVarChar, company)
+      .query(`
+        SELECT * FROM menu_items
+        WHERE company = @company AND available = 1 AND deleted_at IS NULL
+        ORDER BY category, name
+      `);
+    return result.recordset;
   }
 }
 

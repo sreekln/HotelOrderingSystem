@@ -1,37 +1,51 @@
-const { Pool } = require('pg');
+const sql = require('mssql');
 require('dotenv').config();
 
-const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'hotel_ordering_system',
-  password: process.env.DB_PASSWORD || 'password',
-  port: process.env.DB_PORT || 5432,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+const config = {
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_NAME,
+  options: {
+    encrypt: true,
+    trustServerCertificate: false,
+    enableArithAbort: true,
+    connectTimeout: 30000,
+    requestTimeout: 30000
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
+  }
+};
 
-// Test connection
-pool.on('connect', () => {
-  console.log('✓ Connected to PostgreSQL database');
-});
+let pool = null;
 
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
-});
+const getPool = async () => {
+  if (!pool) {
+    try {
+      pool = await sql.connect(config);
+      console.log('✓ Connected to Azure SQL Database');
 
-// Test database connection on startup
+      pool.on('error', err => {
+        console.error('SQL Pool Error:', err);
+        pool = null;
+      });
+    } catch (err) {
+      console.error('✗ Database connection failed:', err.message);
+      throw err;
+    }
+  }
+  return pool;
+};
+
 const testConnection = async () => {
   try {
-    const client = await pool.connect();
-    const result = await client.query('SELECT NOW(), version()');
+    const pool = await getPool();
+    const result = await pool.request().query('SELECT GETDATE() as CurrentTime, @@VERSION as Version');
     console.log('✓ Database connection test successful');
-    console.log('✓ PostgreSQL version:', result.rows[0].version.split(' ')[0] + ' ' + result.rows[0].version.split(' ')[1]);
-    console.log('✓ Current time:', result.rows[0].now);
-    client.release();
+    console.log('✓ Current time:', result.recordset[0].CurrentTime);
   } catch (err) {
     console.error('✗ Database connection test failed:', err.message);
     console.error('Please check your database configuration in .env file');
@@ -39,7 +53,9 @@ const testConnection = async () => {
   }
 };
 
-// Test connection on startup
 testConnection();
 
-module.exports = pool;
+module.exports = {
+  getPool,
+  sql
+};

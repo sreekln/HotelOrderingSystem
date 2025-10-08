@@ -1,123 +1,151 @@
-const pool = require('../config/database');
+const { getPool, sql } = require('../config/database');
 
 class Order {
   static async create(orderData) {
-    const client = await pool.connect();
-    
+    const { user_id, table_number, notes, items } = orderData;
+    const pool = await getPool();
+    const transaction = pool.transaction();
+
     try {
-      await client.query('BEGIN');
-      
-      const { customer_id, table_number, special_instructions, items } = orderData;
-      
-      // Calculate totals
-      let subtotal = 0;
-      let tax_amount = 0;
-      
+      await transaction.begin();
+
+      let total_amount = 0;
       for (const item of items) {
-        const itemSubtotal = item.price * item.quantity;
-        const itemTax = itemSubtotal * (item.tax_rate / 100);
-        subtotal += itemSubtotal;
-        tax_amount += itemTax;
+        total_amount += item.unit_price * item.quantity;
       }
-      
-      const total_amount = subtotal + tax_amount;
-      
-      // Create order
-      const orderQuery = `
-        INSERT INTO orders (customer_id, subtotal, tax_amount, total_amount, status, payment_status, special_instructions, table_number)
-        VALUES ($1, $2, $3, $4, 'pending', 'pending', $5, $6)
-        RETURNING *
-      `;
-      
-      const orderResult = await client.query(orderQuery, [customer_id, subtotal, tax_amount, total_amount, special_instructions, table_number]);
-      const order = orderResult.rows[0];
-      
-      // Create order items
-      for (const item of items) {
-        const itemQuery = `
-          INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-          VALUES ($1, $2, $3, $4)
-        `;
-        await client.query(itemQuery, [order.id, item.menu_item_id, item.quantity, item.price]);
+
+      const orderResult = await transaction.request()
+        .input('user_id', sql.UniqueIdentifier, user_id)
+        .input('table_number', sql.Int, table_number)
+        .input('total_amount', sql.Decimal(10, 2), total_amount)
+        .input('notes', sql.NVarChar, notes)
+        .query(`
+          INSERT INTO orders (user_id, table_number, total_amount, notes, status, payment_status)
+          OUTPUT INSERTED.*
+          VALUES (@user_id, @table_number, @total_amount, @notes, 'pending', 'pending')
+        `);
+
+      const order = orderResult.recordset[0];
+
+      if (items && items.length > 0) {
+        for (const item of items) {
+          await transaction.request()
+            .input('order_id', sql.UniqueIdentifier, order.id)
+            .input('menu_item_id', sql.UniqueIdentifier, item.menu_item_id)
+            .input('quantity', sql.Int, item.quantity)
+            .input('unit_price', sql.Decimal(10, 2), item.unit_price)
+            .input('subtotal', sql.Decimal(10, 2), item.unit_price * item.quantity)
+            .input('special_instructions', sql.NVarChar, item.special_instructions)
+            .query(`
+              INSERT INTO order_items (order_id, menu_item_id, quantity, unit_price, subtotal, special_instructions)
+              VALUES (@order_id, @menu_item_id, @quantity, @unit_price, @subtotal, @special_instructions)
+            `);
+        }
       }
-      
-      await client.query('COMMIT');
+
+      await transaction.commit();
       return order;
-      
     } catch (error) {
-      await client.query('ROLLBACK');
+      await transaction.rollback();
       throw error;
-    } finally {
-      client.release();
     }
   }
 
   static async findAll(filters = {}) {
-    let query = 'SELECT * FROM order_details WHERE 1=1';
-    
-    const params = [];
-    let paramCount = 0;
-    
+    const pool = await getPool();
+    let query = 'SELECT * FROM orders WHERE deleted_at IS NULL';
+    const request = pool.request();
+
     if (filters.status) {
-      paramCount++;
-      query += ` AND status = $${paramCount}`;
-      params.push(filters.status);
+      query += ' AND status = @status';
+      request.input('status', sql.NVarChar, filters.status);
     }
-    
-    if (filters.customer_id) {
-      paramCount++;
-      query += ` AND customer_id = $${paramCount}`;
-      params.push(filters.customer_id);
+
+    if (filters.user_id) {
+      query += ' AND user_id = @user_id';
+      request.input('user_id', sql.UniqueIdentifier, filters.user_id);
     }
-    
-    query += ` ORDER BY created_at DESC`;
-    
-    const result = await pool.query(query, params);
-    return result.rows;
+
+    query += ' ORDER BY created_at DESC';
+
+    const result = await request.query(query);
+    return result.recordset;
   }
 
   static async findById(id) {
-    const query = 'SELECT * FROM order_details WHERE id = $1';
-    
-    const result = await pool.query(query, [id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .query(`
+        SELECT o.*,
+          (SELECT oi.*, mi.name as menu_item_name, mi.price as menu_item_price
+           FROM order_items oi
+           JOIN menu_items mi ON oi.menu_item_id = mi.id
+           WHERE oi.order_id = o.id
+           FOR JSON PATH) as items
+        FROM orders o
+        WHERE o.id = @id AND o.deleted_at IS NULL
+      `);
+
+    if (result.recordset[0]) {
+      const order = result.recordset[0];
+      if (order.items) {
+        order.items = JSON.parse(order.items);
+      }
+      return order;
+    }
+    return null;
   }
 
   static async updateStatus(id, status) {
-    const query = 'UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
-    const result = await pool.query(query, [status, id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .input('status', sql.NVarChar, status)
+      .query('UPDATE orders SET status = @status OUTPUT INSERTED.* WHERE id = @id');
+
+    return result.recordset[0];
   }
 
   static async updatePaymentStatus(id, payment_status) {
-    const query = 'UPDATE orders SET payment_status = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
-    const result = await pool.query(query, [payment_status, id]);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.UniqueIdentifier, id)
+      .input('payment_status', sql.NVarChar, payment_status)
+      .query('UPDATE orders SET payment_status = @payment_status OUTPUT INSERTED.* WHERE id = @id');
+
+    return result.recordset[0];
   }
 
   static async getOrdersByDateRange(startDate, endDate) {
-    const query = `
-      SELECT * FROM order_details 
-      WHERE created_at >= $1 AND created_at <= $2 
-      ORDER BY created_at DESC
-    `;
-    const result = await pool.query(query, [startDate, endDate]);
-    return result.rows;
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('startDate', sql.DateTime2, startDate)
+      .input('endDate', sql.DateTime2, endDate)
+      .query(`
+        SELECT * FROM orders
+        WHERE deleted_at IS NULL AND created_at >= @startDate AND created_at <= @endDate
+        ORDER BY created_at DESC
+      `);
+
+    return result.recordset;
   }
 
   static async getOrderStats() {
-    const query = `
-      SELECT 
-        COUNT(*) as total_orders,
-        SUM(total_amount) as total_revenue,
-        AVG(total_amount) as average_order_value,
-        COUNT(CASE WHEN status = 'delivered' THEN 1 END) as completed_orders,
-        COUNT(CASE WHEN payment_status = 'paid' THEN 1 END) as paid_orders
-      FROM orders 
-      WHERE deleted_at IS NULL
-    `;
-    const result = await pool.query(query);
-    return result.rows[0];
+    const pool = await getPool();
+    const result = await pool.request()
+      .query(`
+        SELECT
+          COUNT(*) as total_orders,
+          ISNULL(SUM(total_amount), 0) as total_revenue,
+          ISNULL(AVG(total_amount), 0) as average_order_value,
+          SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as completed_orders,
+          SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) as paid_orders
+        FROM orders
+        WHERE deleted_at IS NULL
+      `);
+
+    return result.recordset[0];
   }
 }
 
