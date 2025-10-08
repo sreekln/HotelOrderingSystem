@@ -66,14 +66,10 @@ CREATE POLICY "Users can read own profile"
   TO authenticated
   USING (auth.uid() = id);
 
-CREATE POLICY "Admins can read all users"
+CREATE POLICY "Staff can read all profiles"
   ON users FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role = 'admin'
     )
   );
 
@@ -87,10 +83,6 @@ CREATE POLICY "Admins can update any user"
   ON users FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role = 'admin'
     )
   );
 
@@ -128,10 +120,6 @@ CREATE POLICY "Admins can insert companies"
   ON companies FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role = 'admin'
     )
   );
 
@@ -139,10 +127,6 @@ CREATE POLICY "Admins can update companies"
   ON companies FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role = 'admin'
     )
   );
 
@@ -150,10 +134,6 @@ CREATE POLICY "Admins can delete companies"
   ON companies FOR DELETE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role = 'admin'
     )
   );
 
@@ -190,10 +170,6 @@ CREATE POLICY "Admins can insert menu items"
   ON menu_items FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role = 'admin'
     )
   );
 
@@ -201,10 +177,6 @@ CREATE POLICY "Admins can update menu items"
   ON menu_items FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role = 'admin'
     )
   );
 
@@ -212,10 +184,6 @@ CREATE POLICY "Admins can delete menu items"
   ON menu_items FOR DELETE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role = 'admin'
     )
   );
 
@@ -250,10 +218,6 @@ CREATE POLICY "Staff can read all table sessions"
   ON table_sessions FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -261,10 +225,6 @@ CREATE POLICY "Servers can insert table sessions"
   ON table_sessions FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'admin')
     )
   );
 
@@ -272,10 +232,6 @@ CREATE POLICY "Staff can update table sessions"
   ON table_sessions FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -312,10 +268,6 @@ CREATE POLICY "Staff can read all orders"
   ON orders FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -328,10 +280,6 @@ CREATE POLICY "Staff can update orders"
   ON orders FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -360,21 +308,6 @@ CREATE POLICY "Users can read own order items"
   ON order_items FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM orders
-      WHERE orders.id = order_items.order_id
-      AND (orders.user_id::text = auth.uid()::text OR orders.deleted_at IS NULL)
-    )
-  );
-
-CREATE POLICY "Staff can read all order items"
-  ON order_items FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -410,10 +343,6 @@ CREATE POLICY "Staff can read all part orders"
   ON part_orders FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -421,10 +350,6 @@ CREATE POLICY "Servers can insert part orders"
   ON part_orders FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'admin')
     )
   );
 
@@ -432,10 +357,6 @@ CREATE POLICY "Staff can update part orders"
   ON part_orders FOR UPDATE
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -464,10 +385,6 @@ CREATE POLICY "Staff can read all part order items"
   ON part_order_items FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'kitchen', 'admin')
     )
   );
 
@@ -475,10 +392,6 @@ CREATE POLICY "Servers can insert part order items"
   ON part_order_items FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
-      AND users.role IN ('server', 'admin')
     )
   );
 
