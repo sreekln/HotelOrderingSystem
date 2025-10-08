@@ -42,13 +42,14 @@ DROP TABLE IF EXISTS users CASCADE;
 
 -- =====================================================
 -- USERS TABLE
+-- Note: This table extends Supabase auth.users with application-specific data
 -- =====================================================
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
     full_name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('server', 'kitchen', 'admin', 'customer')),
+    password_hash TEXT, -- Optional, kept for schema compatibility
     last_login TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
@@ -63,7 +64,7 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own profile"
   ON users FOR SELECT
   TO authenticated
-  USING (auth.uid()::text = id::text);
+  USING (auth.uid() = id);
 
 CREATE POLICY "Admins can read all users"
   ON users FOR SELECT
@@ -71,7 +72,7 @@ CREATE POLICY "Admins can read all users"
   USING (
     EXISTS (
       SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
+      WHERE users.id = auth.uid()
       AND users.role = 'admin'
     )
   );
@@ -79,8 +80,8 @@ CREATE POLICY "Admins can read all users"
 CREATE POLICY "Users can update own profile"
   ON users FOR UPDATE
   TO authenticated
-  USING (auth.uid()::text = id::text)
-  WITH CHECK (auth.uid()::text = id::text);
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
 CREATE POLICY "Admins can update any user"
   ON users FOR UPDATE
@@ -88,15 +89,15 @@ CREATE POLICY "Admins can update any user"
   USING (
     EXISTS (
       SELECT 1 FROM users
-      WHERE users.id::text = auth.uid()::text
+      WHERE users.id = auth.uid()
       AND users.role = 'admin'
     )
   );
 
-CREATE POLICY "Public can insert users"
+CREATE POLICY "Authenticated users can insert their profile"
   ON users FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (auth.uid() = id);
 
 -- =====================================================
 -- COMPANIES TABLE
