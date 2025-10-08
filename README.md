@@ -34,17 +34,24 @@ cd ..
 
 ### 2. Set Up Database
 
-**For Azure SQL Database:**
+**Option A: Azure SQL Database**
 
 1. Create an Azure SQL Database
 2. Run the schema script: `database/azure-sql-schema.sql`
 3. Run the data script: `database/azure-sql-data.sql`
 
-**For Local SQL Server:**
+**Option B: Local SQL Server**
 
 1. Install SQL Server Express or Developer Edition
 2. Create a database named `hotel_ordering_system`
 3. Run the schema and data scripts
+
+**Option C: Supabase (PostgreSQL)**
+
+1. Create a Supabase project at https://supabase.com
+2. In the SQL Editor, run: `database/supabase-schema.sql`
+3. Then run: `database/supabase-data.sql`
+4. See `database/SUPABASE-MIGRATION.md` for details
 
 ### 3. Environment Configuration
 
@@ -128,8 +135,9 @@ All tables include:
 - bcryptjs (password hashing)
 
 ### Database
-- Azure SQL Database / SQL Server
-- T-SQL stored procedures and triggers
+- Azure SQL Database / SQL Server (default)
+- Supabase PostgreSQL (optional)
+- T-SQL / PostgreSQL triggers
 - Connection pooling
 
 ### Payment

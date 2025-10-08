@@ -1,5 +1,5 @@
 // Subscription functionality has been removed
-// This application now uses PostgreSQL with Express.js API
+// This application now uses SQL Server or Supabase with Express.js API
 // Payment functionality is handled through Stripe integration
 
 export const useSubscription = () => {

@@ -7,7 +7,6 @@
     "dev": "vite",
     "dev:server": "cd server && npm run dev",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\"",
-    "setup:db": "chmod +x database/setup-postgresql.sh && ./database/setup-postgresql.sh",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

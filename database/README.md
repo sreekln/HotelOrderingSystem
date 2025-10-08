@@ -1,41 +1,47 @@
-# Hotel Ordering System PostgreSQL Database
+# Hotel Ordering System Database
 
-This directory contains the PostgreSQL database schema and related files for the Hotel Ordering System.
+This directory contains the database schema and data files for the Hotel Ordering System.
 
 ## 📁 Files
 
-### `schema.sql`
-Complete database schema creation script including:
+### Database Files
+
+#### Azure SQL Server Files
+- `azure-sql-schema.sql` - Complete database schema for Azure SQL Server / SQL Server
+- `azure-sql-data.sql` - Sample data for development and testing
+
+#### Supabase PostgreSQL Files
+- `supabase-schema.sql` - Complete database schema for Supabase PostgreSQL
+- `supabase-data.sql` - Sample data for Supabase development
+
+**Schema Includes:**
 - **Tables**: Users, menu items, orders, companies, table sessions
-- **Types**: Enums for order status, payment status, user roles
-- **Security**: Row Level Security (RLS) policies
 - **Indexes**: Performance optimization
+- **Triggers**: Automatic timestamp updates
 - **Sample Data**: Development and testing data
 
 ## 🚀 Quick Setup
 
-### Automated Setup (Recommended)
-```bash
-# Make script executable and run
-chmod +x database/setup-postgresql.sh
-./database/setup-postgresql.sh
-```
+### Azure SQL Server Setup
 
-### Manual PostgreSQL Setup
-```bash
-# Create database
-createdb hotel_ordering_system
+1. Create an Azure SQL Database or local SQL Server database
+2. Run the schema script: `database/azure-sql-schema.sql`
+3. Run the data script: `database/azure-sql-data.sql`
+4. Update your `.env` file with connection details
 
-# Run the PostgreSQL schema
-psql -d hotel_ordering_system -f database/postgresql-schema.sql
-```
+### Supabase PostgreSQL Setup
+
+1. Create a Supabase project at https://supabase.com
+2. In the SQL Editor, run: `database/supabase-schema.sql`
+3. Then run: `database/supabase-data.sql`
+4. Copy your connection details from Supabase project settings
 
 ## 📊 Database Schema Overview
 
 ### Core Tables
 
 #### **users**
-- User profiles extending auth
+- User profiles with authentication
 - Roles: server, kitchen, admin, customer
 - Soft delete support
 
@@ -47,8 +53,8 @@ psql -d hotel_ordering_system -f database/postgresql-schema.sql
 #### **menu_items**
 - Restaurant menu with pricing
 - Categories: appetizer, main, dessert, beverage
-- Tax rates and availability status
 - Company associations
+- Availability status
 
 #### **orders**
 - Customer orders with status tracking
@@ -69,15 +75,21 @@ psql -d hotel_ordering_system -f database/postgresql-schema.sql
 #### **part_orders**
 - Individual orders within table sessions
 - Kitchen workflow integration
-- JSON storage for flexibility
 
 ### Security Features
 
-#### **Row Level Security (RLS)**
-- ✅ Enabled on all tables
-- ✅ User-specific data access
-- ✅ Role-based permissions
-- ✅ Authenticated user policies
+#### **Security Features**
+
+**Supabase PostgreSQL:**
+- Row Level Security (RLS) enabled on all tables
+- User-specific data access through RLS policies
+- Role-based permissions
+- Authenticated user policies with Supabase Auth integration
+
+**Azure SQL Server:**
+- Application-level security through JWT tokens
+- Role-based access control in application layer
+- Parameterized queries to prevent SQL injection
 
 #### **Access Control**
 - **Servers**: Can create and manage orders
@@ -93,23 +105,25 @@ psql -d hotel_ordering_system -f database/postgresql-schema.sql
 - Date fields for sorting
 - Email and role lookups
 
-#### **Views**
-- `order_details`: Orders with customer and items
-- `menu_items_with_company`: Menu items with supplier info
-
 ## 🔧 Configuration
 
 ### Environment Variables
-Make sure these are set in your application:
+
+**For Azure SQL Server:**
 ```env
-DB_HOST=localhost
-DB_PORT=5432
+DB_SERVER=your-server.database.windows.net
 DB_NAME=hotel_ordering_system
-DB_USER=postgres
-DB_PASSWORD=your_password
+DB_USER=your_db_admin_user
+DB_PASSWORD=your_db_password
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 VITE_API_URL=http://localhost:3001/api
-VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+```
+
+**For Supabase:**
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_API_URL=http://localhost:3001/api
 ```
 
 ## 📈 Sample Data
@@ -117,29 +131,35 @@ VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 The schema includes sample data for development:
 
 ### **Companies**
-- Lush & Hush (Hotel Restaurant)
-- Pick D (Quick Service)
-- SS Food Court (Food Court)
+- Hotel Restaurant (Main Dining)
+- Room Service (In-Room Dining)
+- Pool Bar (Bar & Lounge)
 
 ### **Users**
 - Server: server@hotel.com
-- Kitchen: kitchen@hotel.com  
+- Kitchen: kitchen@hotel.com
 - Admin: admin@hotel.com
 
 ### **Menu Items**
-- 12 sample items across all categories
+- 15 sample items across all categories
 - Realistic pricing and descriptions
-- Different companies and tax rates
+- Different companies
+- Stock photos from Pexels
 
 ## 🛠️ Maintenance
 
 ### **Backup**
-```bash
-# Create backup
-pg_dump -h localhost -U postgres hotel_ordering_system > backup.sql
 
-# Restore backup
-psql -h localhost -U postgres -d hotel_ordering_system < backup.sql
+**Azure SQL Server:**
+```bash
+# Azure SQL Database has automated backups
+# Point-in-time restore available through Azure Portal
+```
+
+**Supabase:**
+```bash
+# Supabase provides automated daily backups
+# Manual backups available through Supabase Dashboard
 ```
 
 ### **Migrations**
@@ -150,29 +170,35 @@ ALTER TABLE orders ADD COLUMN delivery_notes TEXT;
 ```
 
 ### **Monitoring**
-- Monitor query performance: `EXPLAIN ANALYZE SELECT ...`
-- Check index usage: `SELECT * FROM pg_stat_user_indexes`
-- Monitor table sizes: `SELECT pg_size_pretty(pg_total_relation_size('table_name'))`
+
+**Azure SQL Server:**
+- Monitor through Azure Portal Query Performance Insights
+- Check execution plans with SQL Server Management Studio
+- Use Dynamic Management Views (DMVs) for monitoring
+
+**Supabase:**
+- Monitor query performance through Supabase Dashboard
+- Use PostgreSQL EXPLAIN ANALYZE for query optimization
+- Check index usage with pg_stat_user_indexes
 
 ## 🔍 Troubleshooting
 
 ### Common Issues
 
 #### **Connection Issues**
+
+**Azure SQL Server:**
+```sql
+-- Test database connection
+SELECT @@VERSION;
+SELECT DB_NAME();
+```
+
+**Supabase:**
 ```sql
 -- Test database connection
 SELECT version();
 SELECT current_database();
-```
-
-#### **Performance Issues**
-```sql
--- Check table statistics
-SELECT schemaname, tablename, n_tup_ins, n_tup_upd, n_tup_del 
-FROM pg_stat_user_tables;
-
--- Analyze table statistics
-ANALYZE table_name;
 ```
 
 #### **Authentication Issues**
@@ -183,9 +209,10 @@ ANALYZE table_name;
 ## 📞 Support
 
 For database-related issues:
-1. Check PostgreSQL logs
-2. Verify database connection settings
+1. Check database logs (Azure Portal or Supabase Dashboard)
+2. Verify database connection settings in .env file
 3. Monitor query performance
-# Hotel Ordering System PostgreSQL Database
 4. Check application server logs
+5. Review the SUPABASE-MIGRATION.md guide for Supabase-specific issues
+
 🎉 **Your Hotel Ordering System database is ready for production!**
