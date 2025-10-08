@@ -1,6 +1,6 @@
 -- =====================================================
 -- Hotel Ordering System - PostgreSQL Database Schema
--- Converted from Supabase to native PostgreSQL
+-- Pure PostgreSQL without Supabase dependencies
 -- =====================================================
 
 -- Enable required extensions
@@ -64,7 +64,7 @@ END $$;
 -- CORE TABLES
 -- =====================================================
 
--- Users table (replaces Supabase auth.users)
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email TEXT UNIQUE NOT NULL,
@@ -258,7 +258,7 @@ CREATE TRIGGER update_part_orders_updated_at
 
 -- Order details view with customer and items
 CREATE OR REPLACE VIEW order_details AS
-SELECT 
+SELECT
     o.*,
     u.full_name as customer_name,
     u.email as customer_email,
@@ -291,7 +291,7 @@ GROUP BY o.id, u.full_name, u.email;
 
 -- Menu items with company details view
 CREATE OR REPLACE VIEW menu_items_with_company AS
-SELECT 
+SELECT
     mi.*,
     c.category as company_category,
     c.contact_email as company_email,
@@ -302,7 +302,7 @@ WHERE mi.deleted_at IS NULL;
 
 -- Active table sessions view
 CREATE OR REPLACE VIEW active_table_sessions AS
-SELECT 
+SELECT
     ts.*,
     COALESCE(
         json_agg(
@@ -325,6 +325,51 @@ WHERE ts.status != 'closed'
 GROUP BY ts.id;
 
 -- =====================================================
+-- FUNCTIONS FOR BUSINESS LOGIC
+-- =====================================================
+
+-- Function to calculate order totals
+CREATE OR REPLACE FUNCTION calculate_order_totals(order_uuid UUID)
+RETURNS TABLE(subtotal DECIMAL, tax_amount DECIMAL, total_amount DECIMAL) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        COALESCE(SUM(oi.price * oi.quantity), 0) as subtotal,
+        COALESCE(SUM(oi.price * oi.quantity * (mi.tax_rate / 100)), 0) as tax_amount,
+        COALESCE(SUM(oi.price * oi.quantity * (1 + mi.tax_rate / 100)), 0) as total_amount
+    FROM order_items oi
+    JOIN menu_items mi ON oi.menu_item_id = mi.id
+    WHERE oi.order_id = order_uuid;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update table session total
+CREATE OR REPLACE FUNCTION update_table_session_total()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update the table session total when part orders change
+    UPDATE table_sessions
+    SET total_amount = (
+        SELECT COALESCE(SUM(
+            (items->>'total_amount')::DECIMAL
+        ), 0)
+        FROM part_orders
+        WHERE table_session_id = COALESCE(NEW.table_session_id, OLD.table_session_id)
+    )
+    WHERE id = COALESCE(NEW.table_session_id, OLD.table_session_id);
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update table session totals
+DROP TRIGGER IF EXISTS update_session_total_trigger ON part_orders;
+CREATE TRIGGER update_session_total_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON part_orders
+    FOR EACH ROW
+    EXECUTE FUNCTION update_table_session_total();
+
+-- =====================================================
 -- SAMPLE DATA FOR DEVELOPMENT
 -- =====================================================
 
@@ -342,7 +387,7 @@ INSERT INTO companies (name, category, contact_email, phone) VALUES
 ('Local Brew Co.', 'Craft Beer', 'orders@localbrew.co.uk', '+44 20 7012 3456')
 ON CONFLICT (name) DO NOTHING;
 
--- Insert sample users
+-- Insert sample users (password is 'password123' hashed with bcrypt)
 INSERT INTO users (email, password_hash, full_name, role) VALUES
 ('server@hotel.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qm', 'John Smith', 'server'),
 ('kitchen@hotel.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qm', 'Chef Maria', 'kitchen'),
@@ -381,75 +426,6 @@ INSERT INTO menu_items (name, description, price, category, company, tax_rate, f
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
--- FUNCTIONS FOR BUSINESS LOGIC
--- =====================================================
-
--- Function to calculate order totals
-CREATE OR REPLACE FUNCTION calculate_order_totals(order_uuid UUID)
-RETURNS TABLE(subtotal DECIMAL, tax_amount DECIMAL, total_amount DECIMAL) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        COALESCE(SUM(oi.price * oi.quantity), 0) as subtotal,
-        COALESCE(SUM(oi.price * oi.quantity * (mi.tax_rate / 100)), 0) as tax_amount,
-        COALESCE(SUM(oi.price * oi.quantity * (1 + mi.tax_rate / 100)), 0) as total_amount
-    FROM order_items oi
-    JOIN menu_items mi ON oi.menu_item_id = mi.id
-    WHERE oi.order_id = order_uuid;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to update table session total
-CREATE OR REPLACE FUNCTION update_table_session_total()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Update the table session total when part orders change
-    UPDATE table_sessions 
-    SET total_amount = (
-        SELECT COALESCE(SUM(
-            (items->>'total_amount')::DECIMAL
-        ), 0)
-        FROM part_orders 
-        WHERE table_session_id = COALESCE(NEW.table_session_id, OLD.table_session_id)
-    )
-    WHERE id = COALESCE(NEW.table_session_id, OLD.table_session_id);
-    
-    RETURN COALESCE(NEW, OLD);
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger to update table session totals
-DROP TRIGGER IF EXISTS update_session_total_trigger ON part_orders;
-CREATE TRIGGER update_session_total_trigger
-    AFTER INSERT OR UPDATE OR DELETE ON part_orders
-    FOR EACH ROW
-    EXECUTE FUNCTION update_table_session_total();
-
--- =====================================================
--- SECURITY AND PERMISSIONS
--- =====================================================
-
--- Create application user (for connection pooling)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'hotel_app') THEN
-        CREATE ROLE hotel_app WITH LOGIN PASSWORD 'secure_app_password_change_in_production';
-    END IF;
-END
-$$;
-
--- Grant necessary permissions to application user
-GRANT USAGE ON SCHEMA public TO hotel_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hotel_app;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hotel_app;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO hotel_app;
-
--- Grant permissions on future tables
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hotel_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO hotel_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO hotel_app;
-
--- =====================================================
 -- COMPLETION MESSAGE
 -- =====================================================
 
@@ -465,6 +441,6 @@ BEGIN
     RAISE NOTICE 'Sample menu items: %', (SELECT count(*) FROM menu_items);
     RAISE NOTICE 'Sample users: %', (SELECT count(*) FROM users);
     RAISE NOTICE '==============================================';
-    RAISE NOTICE 'Ready for Hotel Ordering System!';
+    RAISE NOTICE 'Default login: admin@hotel.com / password123';
     RAISE NOTICE '==============================================';
 END $$;
