@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import InPersonPayment from './InPersonPayment';
+import PrintPreview from './PrintPreview';
 
 interface PartOrder {
   id: string;
@@ -38,6 +39,7 @@ const ServerDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'order' | 'tables'>('order');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -119,21 +121,18 @@ const ServerDashboard: React.FC = () => {
 
   const printToKitchen = async (partOrder: PartOrder) => {
     try {
-      setLoading(true);
-      
       // Simulate printing delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real implementation, this would send to kitchen printer
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       console.log('Printing to kitchen:', {
         table: partOrder.table_number,
         items: partOrder.items,
         instructions: partOrder.special_instructions,
         timestamp: new Date().toISOString()
       });
-      
+
       toast.success(`Order sent to kitchen printer for Table ${partOrder.table_number}`);
-      
+
       return {
         ...partOrder,
         status: 'sent_to_kitchen' as const,
@@ -143,8 +142,6 @@ const ServerDashboard: React.FC = () => {
       console.error('Error printing to kitchen:', error);
       toast.error('Failed to send order to kitchen');
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -159,8 +156,13 @@ const ServerDashboard: React.FC = () => {
       return;
     }
 
+    setShowPrintPreview(true);
+  };
+
+  const handlePrintComplete = async () => {
     try {
       setLoading(true);
+      setShowPrintPreview(false);
 
       const newPartOrder: PartOrder = {
         id: `part-${Date.now()}`,
@@ -171,26 +173,22 @@ const ServerDashboard: React.FC = () => {
         created_at: new Date().toISOString()
       };
 
-      // Print to kitchen
       const printedOrder = await printToKitchen(newPartOrder);
 
-      // Update or create table session
       setTableSessions(prev => {
         const existingSession = prev.find(session => session.table_number === selectedTable);
-        
+
         if (existingSession) {
-          // Add to existing session
           const updatedSession = {
             ...existingSession,
             part_orders: [...existingSession.part_orders, printedOrder],
             total_amount: existingSession.total_amount + calculateCartTotal(cart).total
           };
-          
-          return prev.map(session => 
+
+          return prev.map(session =>
             session.table_number === selectedTable ? updatedSession : session
           );
         } else {
-          // Create new session
           const newSession: TableSession = {
             table_number: selectedTable,
             customer_name: customerName,
@@ -199,15 +197,14 @@ const ServerDashboard: React.FC = () => {
             status: 'active',
             created_at: new Date().toISOString()
           };
-          
+
           return [...prev, newSession];
         }
       });
 
-      // Clear cart and form
       setCart([]);
       setSpecialInstructions('');
-      
+
       toast.success(`Part order sent to kitchen for Table ${selectedTable}`);
     } catch (error) {
       console.error('Error sending part order:', error);
@@ -773,6 +770,18 @@ const ServerDashboard: React.FC = () => {
           amount={tableSessions.find(s => s.table_number.toString() === showInPersonPayment)?.total_amount || 0}
           onSuccess={handleInPersonPaymentSuccess}
           onCancel={handleInPersonPaymentCancel}
+        />
+      )}
+
+      {/* Print Preview Modal */}
+      {showPrintPreview && (
+        <PrintPreview
+          tableNumber={selectedTable}
+          customerName={customerName}
+          items={cart}
+          specialInstructions={specialInstructions}
+          onClose={() => setShowPrintPreview(false)}
+          onPrint={handlePrintComplete}
         />
       )}
     </div>
