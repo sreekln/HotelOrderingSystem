@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, type User } from './supabase';
 import toast from 'react-hot-toast';
 
@@ -24,71 +24,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        toast.error('Error loading user profile');
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      if (data) {
-        setUser(data);
-        setLoading(false);
-      } else {
-        console.error('User profile not found for ID:', userId);
-        toast.error('User profile not found. Please sign up again.');
-        await supabase.auth.signOut();
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      await supabase.auth.signOut();
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    let mounted = true;
-
-    const initializeAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) setLoading(false);
-          return;
-        }
-
-        if (session?.user && mounted) {
-          await fetchUserProfile(session.user.id);
-        } else if (mounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Failed to initialize auth:', error);
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
         setLoading(false);
-      } else if (session?.user) {
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
         setUser(null);
@@ -96,31 +44,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [fetchUserProfile]);
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      setUser(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      toast.error('Error loading user profile');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-
-      if (data.user) {
-        await fetchUserProfile(data.user.id);
-        toast.success('Successfully signed in!');
-      }
+      toast.success('Successfully signed in!');
     } catch (error: any) {
-      console.error('Sign in error:', error);
-      toast.error(error.message || 'Failed to sign in');
-      setLoading(false);
+      toast.error(error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

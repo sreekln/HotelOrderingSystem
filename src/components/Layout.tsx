@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '../lib/auth';
+import { useAuth } from '../lib/mockAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { LogOut, User, ChefHat, Settings } from 'lucide-react';
 import { getProductByPriceId } from '../stripe-config';
