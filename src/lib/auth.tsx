@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, type User } from './supabase';
+import { supabase } from './supabase';
 import toast from 'react-hot-toast';
+
+export interface User {
+  id: string;
+  email: string;
+  role: 'server' | 'kitchen' | 'admin' | 'customer';
+  full_name: string;
+  created_at: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -25,9 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    console.log('AuthProvider: Initializing...');
+
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('AuthProvider: Got session', session ? 'exists' : 'none');
       if (session?.user) {
+        console.log('AuthProvider: User found in session:', session.user.id);
         fetchUserProfile(session.user.id);
       } else {
         setLoading(false);
@@ -35,12 +47,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthProvider: Auth state changed:', event);
       if (session?.user) {
+        console.log('AuthProvider: User authenticated:', session.user.id);
         await fetchUserProfile(session.user.id);
       } else {
+        console.log('AuthProvider: User logged out');
         setUser(null);
-        setLoading(false);
       }
     });
 
@@ -49,17 +65,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('fetchUserProfile: Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('id, email, full_name, role, created_at')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setUser(data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      toast.error('Error loading user profile');
+      console.log('fetchUserProfile: Response', { hasData: !!data, hasError: !!error });
+
+      if (error) {
+        console.error('fetchUserProfile: Error:', error);
+        throw error;
+      }
+
+      if (data) {
+        console.log('fetchUserProfile: User profile loaded:', data);
+        setUser(data as User);
+      } else {
+        console.warn('fetchUserProfile: No profile found for user');
+      }
+    } catch (error: any) {
+      console.error('fetchUserProfile: Failed:', error.message);
     } finally {
       setLoading(false);
     }
@@ -67,16 +94,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('signIn: Attempting to sign in...');
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-      toast.success('Successfully signed in!');
+      console.log('signIn: Response received', { hasData: !!data, hasError: !!error });
+
+      if (error) {
+        console.error('signIn: Error:', error);
+        throw error;
+      }
+
+      if (data.user) {
+        console.log('signIn: User authenticated, fetching profile...');
+        await fetchUserProfile(data.user.id);
+        toast.success('Successfully signed in!');
+      }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error('signIn: Failed:', error);
+      toast.error(error.message || 'Failed to sign in');
       throw error;
     } finally {
       setLoading(false);
@@ -86,30 +126,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, fullName: string, role = 'customer') => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
+
+      // First, create the auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
 
-      if (data.user) {
-        // Create user profile
+      if (authData.user) {
+        // Then create the user profile in the users table
         const { error: profileError } = await supabase
           .from('users')
           .insert({
-            id: data.user.id,
+            id: authData.user.id,
             email,
             full_name: fullName,
-            role: role,
+            role,
+            password_hash: '', // Not needed for Supabase auth, but keeping schema consistent
           });
 
-        if (profileError) throw profileError;
-      }
+        if (profileError) {
+          // If profile creation fails, clean up auth user
+          await supabase.auth.signOut();
+          throw profileError;
+        }
 
-      toast.success('Account created successfully!');
+        await fetchUserProfile(authData.user.id);
+        toast.success('Account created successfully!');
+      }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || 'Failed to create account');
       throw error;
     } finally {
       setLoading(false);
@@ -120,9 +168,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+
+      setUser(null);
       toast.success('Signed out successfully');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || 'Failed to sign out');
     }
   };
 
