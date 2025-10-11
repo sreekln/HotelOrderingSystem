@@ -43,13 +43,12 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Method not allowed' }, 405);
     }
 
-    const { price_id, success_url, cancel_url, mode } = await req.json();
+    const { price_id, success_url, cancel_url, mode, orderId, amount } = await req.json();
 
     const error = validateParameters(
-      { price_id, success_url, cancel_url, mode },
+      { success_url, cancel_url, mode },
       {
         cancel_url: 'string',
-        price_id: 'string',
         success_url: 'string',
         mode: { values: ['payment', 'subscription'] },
       },
@@ -57,6 +56,16 @@ Deno.serve(async (req) => {
 
     if (error) {
       return corsResponse({ error }, 400);
+    }
+
+    // Validate that either price_id or amount is provided
+    if (!price_id && !amount) {
+      return corsResponse({ error: 'Either price_id or amount must be provided' }, 400);
+    }
+
+    // If amount is provided, it should be a positive number
+    if (amount !== undefined && (typeof amount !== 'number' || amount <= 0)) {
+      return corsResponse({ error: 'Amount must be a positive number' }, 400);
     }
 
     const authHeader = req.headers.get('Authorization')!;
@@ -178,19 +187,39 @@ Deno.serve(async (req) => {
     }
 
     // create Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig: any = {
       customer: customerId,
       payment_method_types: ['card'],
-      line_items: [
+      mode,
+      success_url,
+      cancel_url,
+    };
+
+    // Use dynamic pricing if amount is provided, otherwise use price_id
+    if (amount) {
+      sessionConfig.line_items = [
+        {
+          price_data: {
+            currency: 'gbp',
+            product_data: {
+              name: orderId ? `Order ${orderId}` : 'Table Order',
+              description: orderId ? `Payment for ${orderId}` : 'Restaurant table order',
+            },
+            unit_amount: amount,
+          },
+          quantity: 1,
+        },
+      ];
+    } else {
+      sessionConfig.line_items = [
         {
           price: price_id,
           quantity: 1,
         },
-      ],
-      mode,
-      success_url,
-      cancel_url,
-    });
+      ];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     console.log(`Created checkout session ${session.id} for customer ${customerId}`);
 
