@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../lib/mockAuth';
+import { useAuth } from '../lib/auth';
 
 interface SubscriptionData {
   customer_id: string | null;

@@ -53,10 +53,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setUser(data);
+
+      if (data) {
+        setUser(data);
+      } else {
+        console.error('User profile not found for ID:', userId);
+        toast.error('User profile not found');
+        await supabase.auth.signOut();
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
       toast.error('Error loading user profile');
@@ -68,18 +75,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
-      toast.success('Successfully signed in!');
+
+      if (data.user) {
+        await fetchUserProfile(data.user.id);
+        toast.success('Successfully signed in!');
+      }
     } catch (error: any) {
-      toast.error(error.message);
-      throw error;
-    } finally {
+      console.error('Sign in error:', error);
+      toast.error(error.message || 'Failed to sign in');
       setLoading(false);
+      throw error;
     }
   };
 
