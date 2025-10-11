@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem } from '../lib/mockData';
-import { apiClient } from '../lib/api';
-import { DollarSign, TrendingUp, Users, ShoppingBag, Plus, CreditCard as Edit, Trash2, Settings, CreditCard, Clock, CheckCircle, Printer, Coffee, Utensils, Download, Calendar, Filter } from 'lucide-react';
+import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
+import { 
+  DollarSign, 
+  TrendingUp, 
+  Users, 
+  ShoppingBag, 
+  Plus,
+  Edit,
+  Trash2,
+  Settings,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  Printer,
+  Coffee,
+  Utensils
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
-import * as XLSX from 'xlsx';
 
 // Part Orders and Table Sessions interfaces (matching ServerDashboard)
 interface PartOrder {
@@ -35,8 +48,6 @@ interface DashboardStats {
   averageSessionValue: number;
 }
 
-type DateFilter = 'daily' | 'weekly' | 'monthly' | 'all';
-
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
@@ -51,151 +62,16 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [menuForm, setMenuForm] = useState({
     name: '',
     description: '',
     price: '',
     category: 'appetizer',
-    company: 'Lush & Hush',
+    company: '',
     tax_rate: '8.5',
     food_category: 'Cooked',
     available: true
   });
-
-  // Predefined company options
-  const companyOptions = [
-    'Lush & Hush',
-    'Pick D',
-    'SS Food Court'
-  ];
-
-  // Helper function to get filter label
-  const getFilterLabel = () => {
-    switch (dateFilter) {
-      case 'daily':
-        return 'Today';
-      case 'weekly':
-        return 'This Week';
-      case 'monthly':
-        return 'This Month';
-      case 'all':
-        return 'All Time';
-      default:
-        return 'All Time';
-    }
-  };
-
-  // Helper function to filter sessions by date
-  const getFilteredSessions = () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const thisWeekStart = new Date(today);
-    thisWeekStart.setDate(today.getDate() - today.getDay());
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    return tableSessions.filter(session => {
-      const sessionDate = new Date(session.created_at);
-      
-      switch (dateFilter) {
-        case 'daily':
-          return sessionDate >= today;
-        case 'weekly':
-          return sessionDate >= thisWeekStart;
-        case 'monthly':
-          return sessionDate >= thisMonthStart;
-        case 'all':
-        default:
-          return true;
-      }
-    });
-  };
-
-  const filteredSessions = getFilteredSessions();
-
-  // Export to Excel function
-  const exportToExcel = () => {
-    try {
-      const workbook = XLSX.utils.book_new();
-      
-      // Summary sheet
-      const summaryData = [
-        ['Restaurant Admin Report'],
-        ['Generated:', new Date().toLocaleString()],
-        ['Filter Period:', getFilterLabel()],
-        [''],
-        ['Summary Statistics'],
-        ['Total Revenue:', `£${stats.totalRevenue.toFixed(2)}`],
-        ['Total Sessions:', stats.totalSessions],
-        ['Total Part Orders:', stats.totalPartOrders],
-        ['Total Customers:', stats.totalCustomers],
-        ['Average Session Value:', `£${stats.averageSessionValue.toFixed(2)}`]
-      ];
-      
-      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-      
-      // Table Sessions sheet
-      const sessionsData = [
-        ['Table Number', 'Customer Name', 'Total Amount', 'Session Status', 'Payment Status', 'Part Orders Count', 'Created Date']
-      ];
-      
-      filteredSessions.forEach(session => {
-        sessionsData.push([
-          session.table_number,
-          session.customer_name,
-          session.total_amount,
-          session.status,
-          session.payment_status || 'pending',
-          session.part_orders.length,
-          format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')
-        ]);
-      });
-      
-      const sessionsSheet = XLSX.utils.aoa_to_sheet(sessionsData);
-      XLSX.utils.book_append_sheet(workbook, sessionsSheet, 'Table Sessions');
-      
-      // Part Orders Detail sheet
-      const partOrdersData = [
-        ['Table Number', 'Customer Name', 'Part Order ID', 'Status', 'Item Name', 'Quantity', 'Unit Price', 'Tax Rate', 'Company', 'Created Date']
-      ];
-      
-      filteredSessions.forEach(session => {
-        session.part_orders.forEach(partOrder => {
-          partOrder.items.forEach(orderItem => {
-            partOrdersData.push([
-              session.table_number,
-              session.customer_name,
-              partOrder.id,
-              partOrder.status,
-              orderItem.item.name,
-              orderItem.quantity,
-              orderItem.item.price,
-              `${orderItem.item.tax_rate}%`,
-              orderItem.item.company,
-              format(new Date(partOrder.created_at), 'MMM dd, yyyy HH:mm')
-            ]);
-          });
-        });
-      });
-      
-      const partOrdersSheet = XLSX.utils.aoa_to_sheet(partOrdersData);
-      XLSX.utils.book_append_sheet(workbook, partOrdersSheet, 'Part Orders Detail');
-      
-      // Generate filename with current date and filter
-      const dateStr = format(new Date(), 'yyyy-MM-dd');
-      const filterStr = getFilterLabel().replace(' ', '_').toLowerCase();
-      const filename = `restaurant_report_${filterStr}_${dateStr}.xlsx`;
-      
-      // Save the file
-      XLSX.writeFile(workbook, filename);
-      
-      toast.success('Report exported successfully!');
-    } catch (error) {
-      console.error('Error exporting to Excel:', error);
-      toast.error('Failed to export report');
-    }
-  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -206,9 +82,83 @@ export default function AdminDashboard() {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Fetch table sessions from API
-      const sessionsResponse = await apiClient.getTableSessions();
-      const mockTableSessions = sessionsResponse.data || [];
+      // Mock table sessions data (in real app, this would come from database)
+      const mockTableSessions: TableSession[] = [
+        {
+          table_number: 5,
+          customer_name: 'Smith Family',
+          part_orders: [
+            {
+              id: 'part-1',
+              table_number: 5,
+              items: [
+                { item: mockMenuItems[0], quantity: 2 },
+                { item: mockMenuItems[1], quantity: 1 }
+              ],
+              status: 'served',
+              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
+            },
+            {
+              id: 'part-2',
+              table_number: 5,
+              items: [
+                { item: mockMenuItems[4], quantity: 1 },
+                { item: mockMenuItems[8], quantity: 2 }
+              ],
+              status: 'served',
+              created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 14 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 85.95,
+          status: 'closed',
+          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+          payment_status: 'paid'
+        },
+        {
+          table_number: 8,
+          customer_name: 'Johnson Party',
+          part_orders: [
+            {
+              id: 'part-3',
+              table_number: 8,
+              items: [
+                { item: mockMenuItems[2], quantity: 3 },
+                { item: mockMenuItems[11], quantity: 3 }
+              ],
+              status: 'preparing',
+              created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 9 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 71.94,
+          status: 'active',
+          created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+          payment_status: 'pending'
+        },
+        {
+          table_number: 12,
+          customer_name: 'Williams Couple',
+          part_orders: [
+            {
+              id: 'part-4',
+              table_number: 12,
+              items: [
+                { item: mockMenuItems[3], quantity: 2 },
+                { item: mockMenuItems[10], quantity: 2 }
+              ],
+              status: 'ready',
+              created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 4 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 75.96,
+          status: 'active',
+          created_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+          payment_status: 'pending'
+        }
+      ];
       
       // Calculate stats from table sessions
       const paidSessions = mockTableSessions.filter(s => s.payment_status === 'paid');
@@ -232,16 +182,13 @@ export default function AdminDashboard() {
       setTableSessions(sortedSessions);
       
       // Set menu items
-      const menuResponse = await apiClient.getMenuItems();
-      if (menuResponse.data) {
-        const sortedMenuItems = [...menuResponse.data].sort((a, b) => {
-          if (a.category !== b.category) {
-            return a.category.localeCompare(b.category);
-          }
-          return a.name.localeCompare(b.name);
-        });
-        setMenuItems(sortedMenuItems);
-      }
+      const sortedMenuItems = [...mockMenuItems].sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
+      setMenuItems(sortedMenuItems);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -255,25 +202,27 @@ export default function AdminDashboard() {
     e.preventDefault();
     
     try {
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const menuData = {
+        id: editingItem?.id || `menu-${Date.now()}`,
         ...menuForm,
         price: parseFloat(menuForm.price),
         tax_rate: parseFloat(menuForm.tax_rate),
+        created_at: editingItem?.created_at || new Date().toISOString()
       };
 
       if (editingItem) {
         // Update existing item
-        const response = await apiClient.updateMenuItem(editingItem.id, menuData);
-        if (response.error) {
-          throw new Error(response.error);
+        const itemIndex = mockMenuItems.findIndex(item => item.id === editingItem.id);
+        if (itemIndex !== -1) {
+          mockMenuItems[itemIndex] = menuData as MenuItem;
         }
         toast.success('Menu item updated successfully');
       } else {
         // Add new item
-        const response = await apiClient.createMenuItem(menuData);
-        if (response.error) {
-          throw new Error(response.error);
-        }
+        mockMenuItems.push(menuData as MenuItem);
         toast.success('Menu item added successfully');
       }
 
@@ -284,7 +233,7 @@ export default function AdminDashboard() {
         description: '',
         price: '',
         category: 'appetizer',
-        company: 'Lush & Hush',
+        company: '',
         tax_rate: '8.5',
         food_category: 'Cooked',
         available: true
@@ -317,9 +266,13 @@ export default function AdminDashboard() {
     }
 
     try {
-      const response = await apiClient.deleteMenuItem(itemId);
-      if (response.error) {
-        throw new Error(response.error);
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Remove item from mock data
+      const itemIndex = mockMenuItems.findIndex(item => item.id === itemId);
+      if (itemIndex !== -1) {
+        mockMenuItems.splice(itemIndex, 1);
       }
       
       toast.success('Menu item deleted successfully');
@@ -392,39 +345,6 @@ export default function AdminDashboard() {
           <Settings className="h-8 w-8 mr-3 text-purple-600" />
           Admin Dashboard
         </h1>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-600">Filter:</span>
-            <div className="flex space-x-1">
-              {[
-                { key: 'daily', label: 'Today' },
-                { key: 'weekly', label: 'This Week' },
-                { key: 'monthly', label: 'This Month' },
-                { key: 'all', label: 'All Time' }
-              ].map((filter) => (
-                <button
-                  key={filter.key}
-                  onClick={() => setDateFilter(filter.key as DateFilter)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    dateFilter === filter.key
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            onClick={exportToExcel}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export Excel
-          </button>
-        </div>
       </div>
 
       {/* Tabs */}
@@ -463,9 +383,7 @@ export default function AdminDashboard() {
                   <DollarSign className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Revenue {getFilterLabel()}
-                  </p>
+                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
                   <p className="text-2xl font-bold text-gray-900">£{stats.totalRevenue.toFixed(2)}</p>
                 </div>
               </div>
@@ -477,9 +395,7 @@ export default function AdminDashboard() {
                   <ShoppingBag className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Table Sessions {getFilterLabel()}
-                  </p>
+                  <p className="text-sm font-medium text-gray-600">Table Sessions</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalSessions}</p>
                 </div>
               </div>
@@ -491,9 +407,7 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Part Orders {getFilterLabel()}
-                  </p>
+                  <p className="text-sm font-medium text-gray-600">Part Orders</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalPartOrders}</p>
                 </div>
               </div>
@@ -505,9 +419,7 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Customers {getFilterLabel()}
-                  </p>
+                  <p className="text-sm font-medium text-gray-600">Customers</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalCustomers}</p>
                 </div>
               </div>
@@ -519,9 +431,7 @@ export default function AdminDashboard() {
                   <TrendingUp className="h-6 w-6 text-orange-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Avg Session Value {getFilterLabel()}
-                  </p>
+                  <p className="text-sm font-medium text-gray-600">Avg Session Value</p>
                   <p className="text-2xl font-bold text-gray-900">£{stats.averageSessionValue.toFixed(2)}</p>
                 </div>
               </div>
@@ -569,101 +479,82 @@ export default function AdminDashboard() {
       {activeTab === 'sessions' && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">
-                All Table Sessions {getFilterLabel()} ({filteredSessions.length})
-              </h3>
-              <button
-                onClick={exportToExcel}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900">All Table Sessions</h3>
           </div>
-          {filteredSessions.length === 0 ? (
-            <div className="p-12 text-center">
-              <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
-              <p className="text-gray-500">No table sessions found for {getFilterLabel().toLowerCase()}</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Table & Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Part Orders
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Session Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Payment Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Table & Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Part Orders
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Session Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {tableSessions.map((session) => (
+                  <tr key={`${session.table_number}-${session.created_at}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      Table {session.table_number}
+                      <div className="text-xs text-gray-500">{session.customer_name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="space-y-1">
+                        {session.part_orders.map((partOrder, index) => (
+                          <div key={partOrder.id} className="flex items-center space-x-2">
+                            <span className="text-xs">#{index + 1}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
+                              {getPartOrderStatusIcon(partOrder.status)}
+                              <span className="ml-1">{partOrder.status.replace('_', ' ')}</span>
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {partOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      £{session.total_amount.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                        {session.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        session.payment_status === 'paid' 
+                          ? 'text-green-600 bg-green-50'
+                          : session.payment_status === 'pending'
+                          ? 'text-yellow-600 bg-yellow-50'
+                          : 'text-red-600 bg-red-50'
+                      }`}>
+                        {session.payment_status || 'pending'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSessions.map((session) => (
-                    <tr key={`${session.table_number}-${session.created_at}`}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Table {session.table_number}
-                        <div className="text-xs text-gray-500">{session.customer_name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="space-y-1">
-                          {session.part_orders.map((partOrder, index) => (
-                            <div key={partOrder.id} className="flex items-center space-x-2">
-                              <span className="text-xs">#{index + 1}</span>
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
-                                {getPartOrderStatusIcon(partOrder.status)}
-                                <span className="ml-1">{partOrder.status.replace('_', ' ')}</span>
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {partOrder.items.reduce((sum, item) => sum + item.quantity, 0)} items
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        £{session.total_amount.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
-                          {session.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          session.payment_status === 'paid' 
-                            ? 'text-green-600 bg-green-50'
-                            : session.payment_status === 'pending'
-                            ? 'text-yellow-600 bg-yellow-50'
-                            : 'text-red-600 bg-red-50'
-                        }`}>
-                          {session.payment_status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -697,18 +588,14 @@ export default function AdminDashboard() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                    <select
+                    <input
+                      type="text"
                       required
                       value={menuForm.company}
                       onChange={(e) => setMenuForm(prev => ({ ...prev, company: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      {companyOptions.map(company => (
-                        <option key={company} value={company}>
-                          {company}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Enter company name"
+                    />
                   </div>
 
                   <div>
@@ -805,7 +692,7 @@ export default function AdminDashboard() {
                           description: '',
                           price: '',
                           category: 'appetizer',
-                          company: 'Lush & Hush',
+                          company: '',
                           tax_rate: '8.5',
                           food_category: 'Cooked',
                           available: true
@@ -830,6 +717,11 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600 capitalize">{item.category} • {item.food_category}</p>
                         <div className="text-xs text-gray-500">
                           <span className="font-medium">{item.company}</span>
+                          {mockCompanies.find(c => c.name === item.company) && (
+                            <span className="ml-1">
+                              • {mockCompanies.find(c => c.name === item.company)?.category}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex space-x-1">

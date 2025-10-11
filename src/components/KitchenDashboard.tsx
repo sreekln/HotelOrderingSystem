@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem, calculateCartTotal } from '../lib/mockData';
-import { apiClient } from '../lib/api';
-import { Clock, CheckCircle, AlertCircle, ChefHat, CreditCard as Edit, Save, X, Plus, Minus, Trash2, Search } from 'lucide-react';
+import { Order, OrderItem, MenuItem, mockOrders, mockUsers, mockMenuItems, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTax, calculateCartTotal } from '../lib/mockData';
+import { Clock, CheckCircle, AlertCircle, ChefHat, Edit, Save, X, Plus, Minus, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -43,30 +42,24 @@ const KitchenDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchOrders();
-    fetchMenuItems();
+    setAvailableItems(mockMenuItems.filter(item => item.available));
   }, []);
-
-  const fetchMenuItems = async () => {
-    try {
-      const response = await apiClient.getMenuItems();
-      if (response.data) {
-        setAvailableItems(response.data.filter(item => item.available));
-      }
-    } catch (error) {
-      console.error('Error fetching menu items:', error);
-    }
-  };
 
   const fetchOrders = async () => {
     try {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Fetch part orders from kitchen queue
-      const response = await apiClient.getKitchenQueue();
-      const kitchenOrders = response.data || [];
+      const kitchenOrders = mockOrders
+        .filter(order => ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status))
+        .map(order => ({
+          ...order,
+          customer: mockUsers.find(user => user.id === order.customer_id) || { full_name: 'Unknown Customer' },
+          order_items: getOrderItemsWithMenuItems(order.id)
+        }))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       
-      setOrders(kitchenOrders);
+      setOrders(kitchenOrders as OrderWithItems[]);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Failed to load orders');
@@ -77,9 +70,17 @@ const KitchenDashboard: React.FC = () => {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const response = await apiClient.updatePartOrderStatus(orderId, status);
-      if (response.error) {
-        throw new Error(response.error);
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Update order status in mock data
+      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+      if (orderIndex !== -1) {
+        mockOrders[orderIndex] = {
+          ...mockOrders[orderIndex],
+          status: status as any,
+          updated_at: new Date().toISOString()
+        };
       }
       
       toast.success(`Order status updated to ${status}`);
@@ -130,18 +131,48 @@ const KitchenDashboard: React.FC = () => {
 
   const saveOrderChanges = async (orderId: string) => {
     try {
-      const updateData = {
-        items: editForm.items.map(item => ({
-          item: item.menu_item,
-          quantity: item.quantity
-        })),
-        special_instructions: editForm.specialInstructions
-      };
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      const response = await apiClient.updatePartOrder(orderId, updateData);
-      if (response.error) {
-        throw new Error(response.error);
+      const totals = calculateOrderTotals(editForm.items);
+      
+      // Update order in mock data
+      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
+      if (orderIndex !== -1) {
+        mockOrders[orderIndex] = {
+          ...mockOrders[orderIndex],
+          table_number: editForm.tableNumber,
+          special_instructions: editForm.specialInstructions,
+          subtotal: totals.subtotal,
+          tax_amount: totals.tax,
+          total_amount: totals.total,
+          updated_at: new Date().toISOString()
+        };
       }
+      
+      // Remove old order items
+      const oldItemIds = mockOrderItems
+        .filter(item => item.order_id === orderId)
+        .map(item => item.id);
+      
+      oldItemIds.forEach(itemId => {
+        const itemIndex = mockOrderItems.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+          mockOrderItems.splice(itemIndex, 1);
+        }
+      });
+      
+      // Add updated order items
+      editForm.items.forEach(editItem => {
+        const newOrderItem: OrderItem = {
+          id: editItem.isNew ? `item-${Date.now()}-${editItem.menu_item_id}` : editItem.id,
+          order_id: orderId,
+          menu_item_id: editItem.menu_item_id,
+          quantity: editItem.quantity,
+          price: editItem.menu_item.price
+        };
+        mockOrderItems.push(newOrderItem);
+      });
       
       toast.success('Order updated successfully');
       setEditingOrder(null);

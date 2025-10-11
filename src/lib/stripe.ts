@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { supabase } from './supabase';
 
 export interface CreateCheckoutSessionParams {
   price_id: string;
@@ -11,14 +11,33 @@ export interface CreateCheckoutSessionParams {
 
 export const createCheckoutSession = async (params: CreateCheckoutSessionParams) => {
   try {
-    // Use API client for checkout session creation
-    const response = await apiClient.createCheckoutSession(params);
+    // Get the current session token
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (response.error) {
-      throw new Error(response.error);
+    if (sessionError) {
+      throw new Error('Failed to get authentication session');
     }
     
-    return response.data;
+    if (!session?.access_token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create checkout session');
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error('Error creating checkout session:', error);
     throw error;
@@ -26,6 +45,7 @@ export const createCheckoutSession = async (params: CreateCheckoutSessionParams)
 };
 
 export const redirectToCheckout = (sessionId: string) => {
-  // Redirect to Stripe checkout
+  // In a real implementation, you would use Stripe.js to redirect
+  // For now, we'll simulate the redirect
   window.location.href = `https://checkout.stripe.com/pay/${sessionId}`;
 };
