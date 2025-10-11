@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase, type User } from './supabase';
 import toast from 'react-hot-toast';
 
@@ -24,10 +24,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        toast.error('Error loading user profile');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        setUser(data);
+        setLoading(false);
+      } else {
+        console.error('User profile not found for ID:', userId);
+        toast.error('User profile not found. Please sign up again.');
+        await supabase.auth.signOut();
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      await supabase.auth.signOut();
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -51,7 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
@@ -70,37 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        toast.error('Error loading user profile');
-        await supabase.auth.signOut();
-        return;
-      }
-
-      if (data) {
-        setUser(data);
-      } else {
-        console.error('User profile not found for ID:', userId);
-        toast.error('User profile not found. Please sign up again.');
-        await supabase.auth.signOut();
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      await supabase.auth.signOut();
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchUserProfile]);
 
   const signIn = async (email: string, password: string) => {
     try {
