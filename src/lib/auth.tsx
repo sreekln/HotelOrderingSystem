@@ -25,18 +25,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setLoading(false);
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) setLoading(false);
+          return;
+        }
+
+        if (session?.user && mounted) {
+          await fetchUserProfile(session.user.id);
+        } else if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+        if (mounted) setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
+      if (!mounted) return;
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setLoading(false);
+      } else if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
         setUser(null);
@@ -44,7 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
@@ -55,18 +80,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        toast.error('Error loading user profile');
+        await supabase.auth.signOut();
+        return;
+      }
 
       if (data) {
         setUser(data);
       } else {
         console.error('User profile not found for ID:', userId);
-        toast.error('User profile not found');
+        toast.error('User profile not found. Please sign up again.');
         await supabase.auth.signOut();
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      toast.error('Error loading user profile');
+      await supabase.auth.signOut();
     } finally {
       setLoading(false);
     }
