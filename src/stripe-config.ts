@@ -11,7 +11,7 @@ export const stripeProducts = [
 
 export const getStripeConfig = () => {
   return {
-    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
+    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
     products: stripeProducts,
   };
 };
