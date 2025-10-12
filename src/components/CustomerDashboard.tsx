@@ -1067,7 +1067,7 @@ const ServerDashboard: React.FC = () => {
           </div>
 
           {/* Hidden Print-Only Content */}
-          <div className="hidden print:block print-container">
+          <div className="print-only-content">
             <div className="space-y-3">
               {/* Header */}
               <div className="text-center border-b-2 border-gray-800 pb-2">
