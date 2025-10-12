@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
+import { MenuItem, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
 import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import InPersonPayment from './InPersonPayment';
+import { supabase } from '../lib/supabase';
+import {
+  createTableSession,
+  createPartOrder,
+  getTableSessions,
+  updatePartOrderStatus,
+  closeTableSession,
+  updateTableSessionPaymentStatus
+} from '../services/tableSessionService';
 
 interface PartOrder {
   id: string;
+  table_session_id?: string;
   table_number: number;
   items: { item: MenuItem; quantity: number }[];
   special_instructions?: string;
@@ -18,12 +28,14 @@ interface PartOrder {
 }
 
 interface TableSession {
+  id?: string;
   table_number: number;
   customer_name: string;
   part_orders: PartOrder[];
   total_amount: number;
   status: 'active' | 'ready_to_close' | 'closed';
   created_at: string;
+  payment_status?: string;
 }
 
 const ServerDashboard: React.FC = () => {
@@ -65,9 +77,15 @@ const ServerDashboard: React.FC = () => {
 
   const fetchMenuItems = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const availableItems = mockMenuItems.filter(item => item.available);
-      setMenuItems(availableItems);
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('available', true)
+        .is('deleted_at', null);
+
+      if (error) throw error;
+
+      setMenuItems(data || []);
     } catch (error) {
       console.error('Error fetching menu items:', error);
       toast.error('Failed to load menu items');
@@ -78,30 +96,36 @@ const ServerDashboard: React.FC = () => {
 
   const fetchTableSessions = async () => {
     try {
-      // Mock table sessions - in real app this would come from database
-      const mockSessions: TableSession[] = [
-        {
-          table_number: 5,
-          customer_name: 'Smith Family',
-          part_orders: [
-            {
-              id: 'part-1',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[0], quantity: 2 },
-                { item: mockMenuItems[1], quantity: 1 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 40.97,
-          status: 'active',
-          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
-        }
-      ];
-      setTableSessions(mockSessions);
+      if (!user) return;
+
+      const { data, error } = await getTableSessions(user.id);
+
+      if (error) throw error;
+
+      // Transform the data to match the component's expected format
+      const sessions: TableSession[] = (data || []).map((session: any) => ({
+        id: session.id,
+        table_number: session.table_number,
+        customer_name: session.customer_name || 'Guest',
+        total_amount: parseFloat(session.total_amount || 0),
+        status: session.status,
+        created_at: session.created_at,
+        payment_status: session.payment_status,
+        part_orders: (session.part_orders || []).map((po: any) => ({
+          id: po.id,
+          table_session_id: po.table_session_id,
+          table_number: po.table_number,
+          status: po.status,
+          created_at: po.created_at,
+          printed_at: po.printed_at,
+          items: (po.part_order_items || []).map((item: any) => ({
+            item: item.menu_items,
+            quantity: item.quantity
+          }))
+        }))
+      }));
+
+      setTableSessions(sessions);
     } catch (error) {
       console.error('Error fetching table sessions:', error);
       toast.error('Failed to load table sessions');
@@ -199,23 +223,49 @@ const ServerDashboard: React.FC = () => {
   };
 
   const handlePrintConfirm = async () => {
-    if (!printPreview) return;
+    if (!printPreview || !user) return;
 
     try {
       setLoading(true);
 
-      // Update the part order status
-      const printedOrder: PartOrder = {
-        ...printPreview,
-        status: 'sent_to_kitchen',
-        printed_at: new Date().toISOString()
+      // Create or get table session
+      const { data: sessionData, error: sessionError } = await createTableSession(
+        printPreview.table_number,
+        user.id,
+        customerName
+      );
+
+      if (sessionError || !sessionData) {
+        throw new Error('Failed to create table session');
+      }
+
+      // Create part order in database
+      const partOrderData = {
+        table_session_id: sessionData.id!,
+        server_id: user.id,
+        table_number: printPreview.table_number,
+        status: 'sent_to_kitchen' as const,
+        printed_at: new Date().toISOString(),
+        items: printPreview.items.map(item => ({
+          menu_item_id: item.item.id,
+          quantity: item.quantity,
+          unit_price: item.item.price,
+          subtotal: item.item.price * item.quantity,
+          special_instructions: specialInstructions
+        }))
       };
 
-      // Add to table session
-      addOrderToTableSession(printedOrder);
+      const { data: partOrderResult, error: partOrderError } = await createPartOrder(partOrderData);
+
+      if (partOrderError) {
+        throw new Error('Failed to create part order');
+      }
 
       // Trigger browser print dialog
       window.print();
+
+      // Refresh table sessions
+      await fetchTableSessions();
 
       // Clear cart and form
       setCart([]);
@@ -225,72 +275,114 @@ const ServerDashboard: React.FC = () => {
       setPrintPreview(null);
 
       toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending part order:', error);
-      toast.error('Failed to send part order');
+      toast.error(error.message || 'Failed to send part order');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancelPrint = () => {
-    if (!printPreview) return;
+  const handleCancelPrint = async () => {
+    if (!printPreview || !user) return;
 
-    // Add order to table session even if not printed
-    const unprintedOrder: PartOrder = {
-      ...printPreview,
-      status: 'sent_to_kitchen',
-      printed_at: undefined
-    };
+    try {
+      setLoading(true);
 
-    addOrderToTableSession(unprintedOrder);
+      // Create or get table session
+      const { data: sessionData, error: sessionError } = await createTableSession(
+        printPreview.table_number,
+        user.id,
+        customerName
+      );
 
-    // Clear cart and form
-    setCart([]);
-    setSpecialInstructions('');
+      if (sessionError || !sessionData) {
+        throw new Error('Failed to create table session');
+      }
 
-    // Close modal
-    setPrintPreview(null);
+      // Create part order in database without printing
+      const partOrderData = {
+        table_session_id: sessionData.id!,
+        server_id: user.id,
+        table_number: printPreview.table_number,
+        status: 'sent_to_kitchen' as const,
+        items: printPreview.items.map(item => ({
+          menu_item_id: item.item.id,
+          quantity: item.quantity,
+          unit_price: item.item.price,
+          subtotal: item.item.price * item.quantity,
+          special_instructions: specialInstructions
+        }))
+      };
 
-    toast.success(`Part order added to table session for Table ${printPreview.table_number}`);
+      const { error: partOrderError } = await createPartOrder(partOrderData);
+
+      if (partOrderError) {
+        throw new Error('Failed to create part order');
+      }
+
+      // Refresh table sessions
+      await fetchTableSessions();
+
+      // Clear cart and form
+      setCart([]);
+      setSpecialInstructions('');
+
+      // Close modal
+      setPrintPreview(null);
+
+      toast.success(`Part order added to table session for Table ${printPreview.table_number}`);
+    } catch (error: any) {
+      console.error('Error adding part order:', error);
+      toast.error(error.message || 'Failed to add part order');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updatePartOrderStatus = async (sessionIndex: number, partOrderId: string, newStatus: PartOrder['status']) => {
+  const handleUpdatePartOrderStatus = async (sessionIndex: number, partOrderId: string, newStatus: PartOrder['status']) => {
     try {
+      const { error } = await updatePartOrderStatus(partOrderId, newStatus);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update local state
       setTableSessions(prev => {
         const updated = [...prev];
         const session = updated[sessionIndex];
         const partOrderIndex = session.part_orders.findIndex(po => po.id === partOrderId);
-        
+
         if (partOrderIndex !== -1) {
           updated[sessionIndex] = {
             ...session,
-            part_orders: session.part_orders.map((po, idx) => 
+            part_orders: session.part_orders.map((po, idx) =>
               idx === partOrderIndex ? { ...po, status: newStatus } : po
             )
           };
         }
-        
+
         return updated;
       });
-      
-      toast.success(`Part order status updated to ${newStatus}`);
+
+      toast.success(`Part order status updated to ${newStatus.replace('_', ' ')}`);
     } catch (error) {
       console.error('Error updating part order status:', error);
       toast.error('Failed to update part order status');
     }
   };
 
-  const closeTableSession = async (session: TableSession) => {
-    if (!user) return;
+  const handleCloseTableSession = async (session: TableSession) => {
+    if (!user || !session.id) return;
 
     try {
       setPaymentLoading(session.table_number.toString());
-      
+
       // Create checkout session for the total amount
       const checkoutData = await createCheckoutSession({
         price_id: '', // Empty since we're using dynamic pricing
-        success_url: `${window.location.origin}/success?table=${session.table_number}`,
+        success_url: `${window.location.origin}/success?table=${session.table_number}&session_id=${session.id}`,
         cancel_url: `${window.location.origin}/?payment=cancelled`,
         mode: 'payment',
         orderId: `table-${session.table_number}-${Date.now()}`,
@@ -298,15 +390,12 @@ const ServerDashboard: React.FC = () => {
       });
 
       if (checkoutData.url) {
-        // Mark session as closed
-        setTableSessions(prev => 
-          prev.map(s => 
-            s.table_number === session.table_number 
-              ? { ...s, status: 'closed' as const }
-              : s
-          )
-        );
-        
+        // Mark session as closed in database
+        await closeTableSession(session.id);
+
+        // Refresh table sessions
+        await fetchTableSessions();
+
         window.location.href = checkoutData.url;
       } else {
         throw new Error('No checkout URL received');
@@ -323,21 +412,27 @@ const ServerDashboard: React.FC = () => {
     setShowInPersonPayment(session.table_number.toString());
   };
 
-  const handleInPersonPaymentSuccess = () => {
+  const handleInPersonPaymentSuccess = async () => {
     if (showInPersonPayment) {
       const tableNumber = parseInt(showInPersonPayment);
-      
-      // Mark session as closed and paid
-      setTableSessions(prev => 
-        prev.map(session => 
-          session.table_number === tableNumber 
-            ? { ...session, status: 'closed' as const }
-            : session
-        )
-      );
-      
-      toast.success('In-person payment completed successfully!');
-      setShowInPersonPayment(null);
+      const session = tableSessions.find(s => s.table_number === tableNumber);
+
+      if (session && session.id) {
+        try {
+          // Mark session as closed and paid in database
+          await closeTableSession(session.id);
+          await updateTableSessionPaymentStatus(session.id, 'paid');
+
+          // Refresh table sessions
+          await fetchTableSessions();
+
+          toast.success('In-person payment completed successfully!');
+          setShowInPersonPayment(null);
+        } catch (error) {
+          console.error('Error completing payment:', error);
+          toast.error('Failed to complete payment');
+        }
+      }
     }
   };
 
@@ -745,7 +840,7 @@ const ServerDashboard: React.FC = () => {
                           {/* Part Order Status Controls */}
                           {partOrder.status === 'sent_to_kitchen' && (
                             <button
-                              onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'preparing')}
+                              onClick={() => handleUpdatePartOrderStatus(sessionIndex, partOrder.id, 'preparing')}
                               className="w-full mt-2 bg-amber-600 text-white py-1 px-2 rounded text-xs hover:bg-amber-700 transition-colors"
                             >
                               Mark Preparing
@@ -753,7 +848,7 @@ const ServerDashboard: React.FC = () => {
                           )}
                           {partOrder.status === 'preparing' && (
                             <button
-                              onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'ready')}
+                              onClick={() => handleUpdatePartOrderStatus(sessionIndex, partOrder.id, 'ready')}
                               className="w-full mt-2 bg-green-600 text-white py-1 px-2 rounded text-xs hover:bg-green-700 transition-colors"
                             >
                               Mark Ready
@@ -761,7 +856,7 @@ const ServerDashboard: React.FC = () => {
                           )}
                           {partOrder.status === 'ready' && (
                             <button
-                              onClick={() => updatePartOrderStatus(sessionIndex, partOrder.id, 'served')}
+                              onClick={() => handleUpdatePartOrderStatus(sessionIndex, partOrder.id, 'served')}
                               className="w-full mt-2 bg-purple-600 text-white py-1 px-2 rounded text-xs hover:bg-purple-700 transition-colors"
                             >
                               Mark Served
@@ -775,7 +870,7 @@ const ServerDashboard: React.FC = () => {
                     {session.status === 'active' && (
                       <div className="space-y-2">
                         <button
-                          onClick={() => closeTableSession(session)}
+                          onClick={() => handleCloseTableSession(session)}
                           disabled={paymentLoading === session.table_number.toString()}
                           className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
                         >

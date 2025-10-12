@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
+import { getTableSessions } from '../services/tableSessionService';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -79,92 +80,37 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Mock table sessions data (in real app, this would come from database)
-      const mockTableSessions: TableSession[] = [
-        {
-          table_number: 5,
-          customer_name: 'Smith Family',
-          part_orders: [
-            {
-              id: 'part-1',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[0], quantity: 2 },
-                { item: mockMenuItems[1], quantity: 1 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
-            },
-            {
-              id: 'part-2',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[4], quantity: 1 },
-                { item: mockMenuItems[8], quantity: 2 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 14 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 85.95,
-          status: 'closed',
-          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-          payment_status: 'paid'
-        },
-        {
-          table_number: 8,
-          customer_name: 'Johnson Party',
-          part_orders: [
-            {
-              id: 'part-3',
-              table_number: 8,
-              items: [
-                { item: mockMenuItems[2], quantity: 3 },
-                { item: mockMenuItems[11], quantity: 3 }
-              ],
-              status: 'preparing',
-              created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 9 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 71.94,
-          status: 'active',
-          created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-          payment_status: 'pending'
-        },
-        {
-          table_number: 12,
-          customer_name: 'Williams Couple',
-          part_orders: [
-            {
-              id: 'part-4',
-              table_number: 12,
-              items: [
-                { item: mockMenuItems[3], quantity: 2 },
-                { item: mockMenuItems[10], quantity: 2 }
-              ],
-              status: 'ready',
-              created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 4 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 75.96,
-          status: 'active',
-          created_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-          payment_status: 'pending'
-        }
-      ];
-      
+      // Fetch table sessions from database
+      const { data, error } = await getTableSessions();
+
+      if (error) throw error;
+
+      // Transform the data to match the component's expected format
+      const sessions: TableSession[] = (data || []).map((session: any) => ({
+        table_number: session.table_number,
+        customer_name: session.customer_name || 'Guest',
+        total_amount: parseFloat(session.total_amount || 0),
+        status: session.status,
+        created_at: session.created_at,
+        payment_status: session.payment_status,
+        part_orders: (session.part_orders || []).map((po: any) => ({
+          id: po.id,
+          table_number: po.table_number,
+          status: po.status,
+          created_at: po.created_at,
+          printed_at: po.printed_at,
+          items: (po.part_order_items || []).map((item: any) => ({
+            item: item.menu_items,
+            quantity: item.quantity
+          }))
+        }))
+      }));
+
       // Calculate stats from table sessions
-      const paidSessions = mockTableSessions.filter(s => s.payment_status === 'paid');
+      const paidSessions = sessions.filter(s => s.payment_status === 'paid');
       const totalRevenue = paidSessions.reduce((sum, session) => sum + session.total_amount, 0);
-      const totalPartOrders = mockTableSessions.reduce((sum, session) => sum + session.part_orders.length, 0);
-      const uniqueCustomers = new Set(mockTableSessions.map(s => s.customer_name)).size;
+      const totalPartOrders = sessions.reduce((sum, session) => sum + session.part_orders.length, 0);
+      const uniqueCustomers = new Set(sessions.map(s => s.customer_name)).size;
       const averageSessionValue = paidSessions.length > 0 ? totalRevenue / paidSessions.length : 0;
 
       setStats({
@@ -176,9 +122,9 @@ export default function AdminDashboard() {
       });
 
       // Sort sessions by creation time
-      const sortedSessions = mockTableSessions
+      const sortedSessions = sessions
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
+
       setTableSessions(sortedSessions);
       
       // Set menu items
