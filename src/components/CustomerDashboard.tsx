@@ -244,6 +244,7 @@ const ServerDashboard: React.FC = () => {
 
       // Trigger browser print dialog
       // Modal will be closed by afterprint event handler
+      setPrintPreview(printedOrder);
       window.print();
     } catch (error) {
       console.error('Error sending part order:', error);
