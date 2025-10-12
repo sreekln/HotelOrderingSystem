@@ -263,19 +263,25 @@ const ServerDashboard: React.FC = () => {
       }
 
       // Trigger browser print dialog
-      window.print();
+      // Use setTimeout to ensure the DOM is ready
+      setTimeout(() => {
+        window.print();
 
-      // Refresh table sessions
-      await fetchTableSessions();
+        // Wait for print dialog to close before cleaning up
+        setTimeout(() => {
+          // Refresh table sessions
+          fetchTableSessions();
 
-      // Clear cart and form
-      setCart([]);
-      setSpecialInstructions('');
+          // Clear cart and form
+          setCart([]);
+          setSpecialInstructions('');
 
-      // Close modal
-      setPrintPreview(null);
+          // Close modal
+          setPrintPreview(null);
 
-      toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
+          toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
+        }, 500);
+      }, 100);
     } catch (error: any) {
       console.error('Error sending part order:', error);
       toast.error(error.message || 'Failed to send part order');

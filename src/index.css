@@ -49,8 +49,27 @@
   }
 
   .print-only-content * {
-    display: revert !important;
     visibility: visible !important;
+  }
+
+  .print-only-content .grid {
+    display: grid !important;
+  }
+
+  .print-only-content .flex {
+    display: flex !important;
+  }
+
+  .print-only-content .border {
+    border-width: 1px !important;
+  }
+
+  .print-only-content .border-2 {
+    border-width: 2px !important;
+  }
+
+  .print-only-content .border-4 {
+    border-width: 4px !important;
   }
 
   .print-only-content > div {
