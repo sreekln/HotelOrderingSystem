@@ -22,7 +22,10 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('mockUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [loading, setLoading] = useState(false);
 
   const signIn = async (email: string, password: string) => {
@@ -53,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setUser(foundUser);
+      localStorage.setItem('mockUser', JSON.stringify(foundUser));
       toast.success(`Welcome back, ${foundUser.full_name}!`);
     } catch (error: any) {
       toast.error(error.message);
@@ -98,7 +102,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setUser(newUser);
-      
+      localStorage.setItem('mockUser', JSON.stringify(newUser));
+
       toast.success('Account created successfully!');
     } catch (error: any) {
       toast.error(error.message);
@@ -113,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Sign out from Supabase as well
       await supabase.auth.signOut();
       setUser(null);
+      localStorage.removeItem('mockUser');
       toast.success('Signed out successfully');
     } catch (error: any) {
       toast.error(error.message);

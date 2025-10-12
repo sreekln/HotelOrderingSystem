@@ -44,6 +44,23 @@ const ServerDashboard: React.FC = () => {
   useEffect(() => {
     fetchMenuItems();
     fetchTableSessions();
+
+    // Prevent navigation during print
+    const beforePrint = () => {
+      console.log('Print started');
+    };
+
+    const afterPrint = () => {
+      console.log('Print ended');
+    };
+
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
   }, []);
 
   const fetchMenuItems = async () => {
@@ -129,12 +146,12 @@ const ServerDashboard: React.FC = () => {
 
     try {
       setLoading(true);
-      setPrintPreview(null);
 
       // Trigger browser print dialog
-      setTimeout(() => {
-        window.print();
-      }, 100);
+      window.print();
+
+      // Close modal after print dialog is dismissed
+      setPrintPreview(null);
 
       toast.success(`Order sent to kitchen printer for Table ${printPreview.table_number}`);
 
