@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
 import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
@@ -39,29 +39,39 @@ const ServerDashboard: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const [printPreview, setPrintPreview] = useState<PartOrder | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const printPreviewRef = useRef<PartOrder | null>(null);
   const { user } = useAuth();
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    printPreviewRef.current = printPreview;
+  }, [printPreview]);
 
   useEffect(() => {
     fetchMenuItems();
     fetchTableSessions();
 
-    // Prevent navigation during print
-    const beforePrint = () => {
-      console.log('Print started');
-    };
-
+    // Handle print completion
     const afterPrint = () => {
       console.log('Print ended');
+      // If print preview was open, close it after printing
+      const currentPreview = printPreviewRef.current;
+      if (currentPreview && isPrinting) {
+        setPrintPreview(null);
+        setCart([]);
+        setSpecialInstructions('');
+        setIsPrinting(false);
+        toast.success(`Part order sent to kitchen for Table ${currentPreview.table_number}`);
+      }
     };
 
-    window.addEventListener('beforeprint', beforePrint);
     window.addEventListener('afterprint', afterPrint);
 
     return () => {
-      window.removeEventListener('beforeprint', beforePrint);
       window.removeEventListener('afterprint', afterPrint);
     };
-  }, []);
+  }, [isPrinting]);
 
   const fetchMenuItems = async () => {
     try {
@@ -223,23 +233,23 @@ const ServerDashboard: React.FC = () => {
         printed_at: new Date().toISOString()
       };
 
-      // Add to table session
+      // Add to table session BEFORE printing
       addOrderToTableSession(printedOrder);
 
+      // Set printing flag
+      setIsPrinting(true);
+
+      // Small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       // Trigger browser print dialog
+      // Modal will be closed by afterprint event handler
       window.print();
-
-      // Clear cart and form
-      setCart([]);
-      setSpecialInstructions('');
-
-      // Close modal
-      setPrintPreview(null);
-
-      toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
     } catch (error) {
       console.error('Error sending part order:', error);
       toast.error('Failed to send part order');
+      setPrintPreview(null);
+      setIsPrinting(false);
     } finally {
       setLoading(false);
     }
