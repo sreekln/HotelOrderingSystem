@@ -25,19 +25,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('AuthProvider: Initializing...');
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        console.log('AuthProvider: Session check complete', { hasSession: !!session });
+        if (session?.user) {
+          fetchUserProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.error('AuthProvider: Error getting session:', error);
         setLoading(false);
-      }
-    });
+      });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('AuthProvider: Auth state changed', { hasSession: !!session });
       if (session?.user) {
-        await fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id);
       } else {
         setUser(null);
         setLoading(false);
@@ -48,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
+    console.log('AuthProvider: Fetching user profile for:', userId);
     try {
       const { data, error } = await supabase
         .from('users')
@@ -58,17 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
 
       if (!data) {
-        console.error('User profile not found in database');
+        console.error('AuthProvider: User profile not found in database');
         toast.error('User profile not found. Please contact an administrator.');
         await supabase.auth.signOut();
         return;
       }
 
+      console.log('AuthProvider: User profile loaded:', data);
       setUser(data);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('AuthProvider: Error fetching user profile:', error);
       toast.error('Error loading user profile');
     } finally {
+      console.log('AuthProvider: Setting loading to false');
       setLoading(false);
     }
   };
