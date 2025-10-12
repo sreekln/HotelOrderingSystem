@@ -78,30 +78,37 @@ const ServerDashboard: React.FC = () => {
 
   const fetchTableSessions = async () => {
     try {
-      // Mock table sessions - in real app this would come from database
-      const mockSessions: TableSession[] = [
-        {
-          table_number: 5,
-          customer_name: 'Smith Family',
-          part_orders: [
-            {
-              id: 'part-1',
-              table_number: 5,
-              items: [
-                { item: mockMenuItems[0], quantity: 2 },
-                { item: mockMenuItems[1], quantity: 1 }
-              ],
-              status: 'served',
-              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
-            }
-          ],
-          total_amount: 40.97,
-          status: 'active',
-          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
-        }
-      ];
-      setTableSessions(mockSessions);
+      // Load from localStorage
+      const stored = localStorage.getItem('tableSessions');
+      if (stored) {
+        setTableSessions(JSON.parse(stored));
+      } else {
+        // Mock table sessions - in real app this would come from database
+        const mockSessions: TableSession[] = [
+          {
+            table_number: 5,
+            customer_name: 'Smith Family',
+            part_orders: [
+              {
+                id: 'part-1',
+                table_number: 5,
+                items: [
+                  { item: mockMenuItems[0], quantity: 2 },
+                  { item: mockMenuItems[1], quantity: 1 }
+                ],
+                status: 'served',
+                created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+                printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
+              }
+            ],
+            total_amount: 40.97,
+            status: 'active',
+            created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
+          }
+        ];
+        setTableSessions(mockSessions);
+        localStorage.setItem('tableSessions', JSON.stringify(mockSessions));
+      }
     } catch (error) {
       console.error('Error fetching table sessions:', error);
       toast.error('Failed to load table sessions');
@@ -171,6 +178,7 @@ const ServerDashboard: React.FC = () => {
     setTableSessions(prev => {
       const existingSession = prev.find(session => session.table_number === order.table_number);
 
+      let updated;
       if (existingSession) {
         // Add to existing session
         const updatedSession = {
@@ -179,7 +187,7 @@ const ServerDashboard: React.FC = () => {
           total_amount: existingSession.total_amount + calculateCartTotal(order.items).total
         };
 
-        return prev.map(session =>
+        updated = prev.map(session =>
           session.table_number === order.table_number ? updatedSession : session
         );
       } else {
@@ -193,8 +201,12 @@ const ServerDashboard: React.FC = () => {
           created_at: new Date().toISOString()
         };
 
-        return [...prev, newSession];
+        updated = [...prev, newSession];
       }
+
+      // Persist to localStorage
+      localStorage.setItem('tableSessions', JSON.stringify(updated));
+      return updated;
     });
   };
 
@@ -261,19 +273,21 @@ const ServerDashboard: React.FC = () => {
         const updated = [...prev];
         const session = updated[sessionIndex];
         const partOrderIndex = session.part_orders.findIndex(po => po.id === partOrderId);
-        
+
         if (partOrderIndex !== -1) {
           updated[sessionIndex] = {
             ...session,
-            part_orders: session.part_orders.map((po, idx) => 
+            part_orders: session.part_orders.map((po, idx) =>
               idx === partOrderIndex ? { ...po, status: newStatus } : po
             )
           };
         }
-        
+
+        // Persist to localStorage
+        localStorage.setItem('tableSessions', JSON.stringify(updated));
         return updated;
       });
-      
+
       toast.success(`Part order status updated to ${newStatus}`);
     } catch (error) {
       console.error('Error updating part order status:', error);
@@ -299,13 +313,16 @@ const ServerDashboard: React.FC = () => {
 
       if (checkoutData.url) {
         // Mark session as closed
-        setTableSessions(prev => 
-          prev.map(s => 
-            s.table_number === session.table_number 
+        setTableSessions(prev => {
+          const updated = prev.map(s =>
+            s.table_number === session.table_number
               ? { ...s, status: 'closed' as const }
               : s
-          )
-        );
+          );
+          // Persist to localStorage
+          localStorage.setItem('tableSessions', JSON.stringify(updated));
+          return updated;
+        });
         
         window.location.href = checkoutData.url;
       } else {
@@ -326,16 +343,19 @@ const ServerDashboard: React.FC = () => {
   const handleInPersonPaymentSuccess = () => {
     if (showInPersonPayment) {
       const tableNumber = parseInt(showInPersonPayment);
-      
+
       // Mark session as closed and paid
-      setTableSessions(prev => 
-        prev.map(session => 
-          session.table_number === tableNumber 
+      setTableSessions(prev => {
+        const updated = prev.map(session =>
+          session.table_number === tableNumber
             ? { ...session, status: 'closed' as const }
             : session
-        )
-      );
-      
+        );
+        // Persist to localStorage
+        localStorage.setItem('tableSessions', JSON.stringify(updated));
+        return updated;
+      });
+
       toast.success('In-person payment completed successfully!');
       setShowInPersonPayment(null);
     }
@@ -829,9 +849,9 @@ const ServerDashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 print-container">
+              <div className="flex-1 overflow-y-auto p-6">
                 {/* Print Preview Content */}
-                <div className="space-y-6 print:space-y-4">
+                <div className="space-y-6 print-container">
                 {/* Header */}
                 <div className="text-center border-b pb-4">
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">Kitchen Order</h1>
