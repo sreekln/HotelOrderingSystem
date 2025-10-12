@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
-import { AuthProvider, useAuth } from './lib/mockAuth';
+import { AuthProvider, useAuth } from './lib/auth';
 import { mockOrders } from './lib/mockData';
 import Layout from './components/Layout';
 import Auth from './components/Auth';
