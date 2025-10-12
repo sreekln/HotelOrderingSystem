@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MenuItem, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/auth';
 import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
@@ -1067,6 +1068,7 @@ const ServerDashboard: React.FC = () => {
           </div>
 
           {/* Hidden Print-Only Content */}
+          {createPortal(
           <div className="print-only-content">
             <div className="space-y-3">
               {/* Header */}
@@ -1181,7 +1183,9 @@ const ServerDashboard: React.FC = () => {
                 <div className="font-bold">Order ID: {printPreview.id}</div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
+          )}
         </>
       )}
     </div>
