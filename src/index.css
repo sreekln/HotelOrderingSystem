@@ -21,20 +21,22 @@
     overflow: visible;
   }
 
-  body > * {
-    display: none !important;
+  body * {
+    visibility: hidden !important;
   }
 
-  body .print-container {
+  .print-container {
+    visibility: visible !important;
     display: block !important;
-    position: static !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     height: auto !important;
     margin: 0 !important;
     padding: 1.5rem !important;
     background: white !important;
     overflow: visible !important;
-    page-break-after: auto !important;
   }
 
   .print-container * {
@@ -43,9 +45,11 @@
 
   .print\:hidden {
     display: none !important;
+    visibility: hidden !important;
   }
 
   .print\:block {
     display: block !important;
+    visibility: visible !important;
   }
 }
