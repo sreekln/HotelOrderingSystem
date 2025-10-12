@@ -20,14 +20,36 @@
     padding: 0;
   }
 
-  /* Hide modal and its backdrop */
-  .print\:hidden {
+  /* Hide everything except print container */
+  body * {
     display: none !important;
+  }
+
+  /* Show the print container and its contents */
+  .print-container,
+  .print-container * {
+    display: block !important;
+  }
+
+  /* Preserve flex and grid layouts */
+  .print-container .flex {
+    display: flex !important;
+  }
+
+  .print-container .grid {
+    display: grid !important;
+  }
+
+  .print-container .inline {
+    display: inline !important;
+  }
+
+  .print-container .inline-block {
+    display: inline-block !important;
   }
 
   /* Reset and style the print container */
   .print-container {
-    display: block !important;
     position: static !important;
     left: auto !important;
     top: auto !important;
