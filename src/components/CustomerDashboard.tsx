@@ -38,6 +38,7 @@ const ServerDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'order' | 'tables'>('order');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
+  const [printPreview, setPrintPreview] = useState<PartOrder | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -118,24 +119,27 @@ const ServerDashboard: React.FC = () => {
   };
 
   const printToKitchen = async (partOrder: PartOrder) => {
+    // Show print preview modal
+    setPrintPreview(partOrder);
+    return partOrder;
+  };
+
+  const confirmPrint = async () => {
+    if (!printPreview) return;
+
     try {
       setLoading(true);
-      
-      // Simulate printing delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real implementation, this would send to kitchen printer
-      console.log('Printing to kitchen:', {
-        table: partOrder.table_number,
-        items: partOrder.items,
-        instructions: partOrder.special_instructions,
-        timestamp: new Date().toISOString()
-      });
-      
-      toast.success(`Order sent to kitchen printer for Table ${partOrder.table_number}`);
-      
+      setPrintPreview(null);
+
+      // Trigger browser print dialog
+      setTimeout(() => {
+        window.print();
+      }, 100);
+
+      toast.success(`Order sent to kitchen printer for Table ${printPreview.table_number}`);
+
       return {
-        ...partOrder,
+        ...printPreview,
         status: 'sent_to_kitchen' as const,
         printed_at: new Date().toISOString()
       };
@@ -774,6 +778,163 @@ const ServerDashboard: React.FC = () => {
           onSuccess={handleInPersonPaymentSuccess}
           onCancel={handleInPersonPaymentCancel}
         />
+      )}
+
+      {/* Print Preview Modal */}
+      {printPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex justify-between items-center print:hidden">
+              <h2 className="text-xl font-bold text-gray-900">Print Preview - Kitchen Order</h2>
+              <button
+                onClick={() => setPrintPreview(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* Print Content */}
+              <div className="space-y-6" id="print-content">
+                {/* Header */}
+                <div className="text-center border-b pb-4">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Kitchen Order</h1>
+                  <div className="text-sm text-gray-600">
+                    {new Date().toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Order Details */}
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Server Name</div>
+                    <div className="font-semibold text-gray-900">{user?.full_name || 'Server'}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Table Number</div>
+                    <div className="font-semibold text-gray-900 text-2xl">Table {printPreview.table_number}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-sm text-gray-600 mb-1">Order Time</div>
+                    <div className="font-semibold text-gray-900">
+                      {new Date(printPreview.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Items */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 border-b pb-2">Order Items</h3>
+                  <div className="space-y-3">
+                    {printPreview.items.map((item, index) => (
+                      <div key={index} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 text-lg">
+                            {item.quantity}x {item.item.name}
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">{item.item.description}</div>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
+                              {item.item.category}
+                            </span>
+                            <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full font-medium">
+                              {item.item.food_category}
+                            </span>
+                            <span className="text-xs text-gray-500">{item.item.company}</span>
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="font-semibold text-gray-900">
+                            £{(item.item.price * item.quantity).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            £{item.item.price.toFixed(2)} each
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Special Instructions */}
+                {printPreview.special_instructions && (
+                  <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <div className="text-yellow-600 mr-3 mt-1">
+                        <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-bold text-yellow-800 mb-1">Special Instructions:</div>
+                        <div className="text-yellow-800 font-medium">{printPreview.special_instructions}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Order Summary */}
+                <div className="border-t-2 pt-4">
+                  <h3 className="text-lg font-bold text-gray-900 mb-3">Part Order Summary</h3>
+                  <div className="space-y-2">
+                    {(() => {
+                      const subtotal = printPreview.items.reduce(
+                        (sum, item) => sum + (item.item.price * item.quantity),
+                        0
+                      );
+                      const tax = printPreview.items.reduce(
+                        (sum, item) => sum + (item.item.price * item.quantity * item.item.tax_rate / 100),
+                        0
+                      );
+                      const total = subtotal + tax;
+
+                      return (
+                        <>
+                          <div className="flex justify-between text-gray-700">
+                            <span>Subtotal:</span>
+                            <span className="font-semibold">£{subtotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-gray-700">
+                            <span>Tax:</span>
+                            <span className="font-semibold">£{tax.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-xl font-bold text-gray-900 border-t-2 pt-2 mt-2">
+                            <span>Total:</span>
+                            <span className="text-amber-600">£{total.toFixed(2)}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center text-sm text-gray-500 border-t pt-4">
+                  <div>Part Order ID: {printPreview.id}</div>
+                  <div className="mt-1">Please prepare items according to kitchen workflow</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t flex justify-end space-x-3 print:hidden">
+              <button
+                onClick={() => setPrintPreview(null)}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmPrint}
+                disabled={loading}
+                className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                {loading ? 'Printing...' : 'Print Order'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
