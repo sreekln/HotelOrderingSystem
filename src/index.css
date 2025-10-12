@@ -5,12 +5,19 @@
 @media print {
   @page {
     margin: 1cm;
-    size: auto;
+    size: A4;
   }
 
-  body {
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+  * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   body * {
@@ -23,14 +30,20 @@
   }
 
   .print-container {
-    position: absolute !important;
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
+    height: auto !important;
     display: block !important;
     background: white !important;
     padding: 0 !important;
     margin: 0 !important;
+    page-break-after: avoid !important;
+  }
+
+  .print-container > * {
+    page-break-inside: avoid !important;
   }
 
   .print\:hidden {
@@ -40,5 +53,6 @@
 
   .print\:block {
     display: block !important;
+    visibility: visible !important;
   }
 }

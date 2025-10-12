@@ -141,33 +141,6 @@ const ServerDashboard: React.FC = () => {
     return partOrder;
   };
 
-  const confirmPrint = async () => {
-    if (!printPreview) return;
-
-    try {
-      setLoading(true);
-
-      // Trigger browser print dialog
-      window.print();
-
-      // Close modal after print dialog is dismissed
-      setPrintPreview(null);
-
-      toast.success(`Order sent to kitchen printer for Table ${printPreview.table_number}`);
-
-      return {
-        ...printPreview,
-        status: 'sent_to_kitchen' as const,
-        printed_at: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error('Error printing to kitchen:', error);
-      toast.error('Failed to send order to kitchen');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const sendPartOrder = async () => {
     if (!user || cart.length === 0) {
@@ -180,47 +153,61 @@ const ServerDashboard: React.FC = () => {
       return;
     }
 
+    const newPartOrder: PartOrder = {
+      id: `part-${Date.now()}`,
+      table_number: selectedTable,
+      items: [...cart],
+      special_instructions: specialInstructions,
+      status: 'draft',
+      created_at: new Date().toISOString()
+    };
+
+    // Show print preview (this will open the modal)
+    printToKitchen(newPartOrder);
+  };
+
+  const handlePrintConfirm = async () => {
+    if (!printPreview) return;
+
     try {
       setLoading(true);
 
-      const newPartOrder: PartOrder = {
-        id: `part-${Date.now()}`,
-        table_number: selectedTable,
-        items: [...cart],
-        special_instructions: specialInstructions,
-        status: 'draft',
-        created_at: new Date().toISOString()
-      };
+      // Trigger browser print dialog
+      window.print();
 
-      // Print to kitchen
-      const printedOrder = await printToKitchen(newPartOrder);
+      // Update the part order status
+      const printedOrder: PartOrder = {
+        ...printPreview,
+        status: 'sent_to_kitchen',
+        printed_at: new Date().toISOString()
+      };
 
       // Update or create table session
       setTableSessions(prev => {
-        const existingSession = prev.find(session => session.table_number === selectedTable);
-        
+        const existingSession = prev.find(session => session.table_number === printPreview.table_number);
+
         if (existingSession) {
           // Add to existing session
           const updatedSession = {
             ...existingSession,
             part_orders: [...existingSession.part_orders, printedOrder],
-            total_amount: existingSession.total_amount + calculateCartTotal(cart).total
+            total_amount: existingSession.total_amount + calculateCartTotal(printPreview.items).total
           };
-          
-          return prev.map(session => 
-            session.table_number === selectedTable ? updatedSession : session
+
+          return prev.map(session =>
+            session.table_number === printPreview.table_number ? updatedSession : session
           );
         } else {
           // Create new session
           const newSession: TableSession = {
-            table_number: selectedTable,
+            table_number: printPreview.table_number,
             customer_name: customerName,
             part_orders: [printedOrder],
-            total_amount: calculateCartTotal(cart).total,
+            total_amount: calculateCartTotal(printPreview.items).total,
             status: 'active',
             created_at: new Date().toISOString()
           };
-          
+
           return [...prev, newSession];
         }
       });
@@ -228,8 +215,11 @@ const ServerDashboard: React.FC = () => {
       // Clear cart and form
       setCart([]);
       setSpecialInstructions('');
-      
-      toast.success(`Part order sent to kitchen for Table ${selectedTable}`);
+
+      // Close modal
+      setPrintPreview(null);
+
+      toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
     } catch (error) {
       console.error('Error sending part order:', error);
       toast.error('Failed to send part order');
@@ -943,7 +933,7 @@ const ServerDashboard: React.FC = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={confirmPrint}
+                  onClick={handlePrintConfirm}
                   disabled={loading}
                   className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center"
                 >
