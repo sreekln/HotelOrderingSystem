@@ -166,14 +166,43 @@ const ServerDashboard: React.FC = () => {
     printToKitchen(newPartOrder);
   };
 
+  const addOrderToTableSession = (order: PartOrder) => {
+    // Update or create table session
+    setTableSessions(prev => {
+      const existingSession = prev.find(session => session.table_number === order.table_number);
+
+      if (existingSession) {
+        // Add to existing session
+        const updatedSession = {
+          ...existingSession,
+          part_orders: [...existingSession.part_orders, order],
+          total_amount: existingSession.total_amount + calculateCartTotal(order.items).total
+        };
+
+        return prev.map(session =>
+          session.table_number === order.table_number ? updatedSession : session
+        );
+      } else {
+        // Create new session
+        const newSession: TableSession = {
+          table_number: order.table_number,
+          customer_name: customerName,
+          part_orders: [order],
+          total_amount: calculateCartTotal(order.items).total,
+          status: 'active',
+          created_at: new Date().toISOString()
+        };
+
+        return [...prev, newSession];
+      }
+    });
+  };
+
   const handlePrintConfirm = async () => {
     if (!printPreview) return;
 
     try {
       setLoading(true);
-
-      // Trigger browser print dialog
-      window.print();
 
       // Update the part order status
       const printedOrder: PartOrder = {
@@ -182,35 +211,11 @@ const ServerDashboard: React.FC = () => {
         printed_at: new Date().toISOString()
       };
 
-      // Update or create table session
-      setTableSessions(prev => {
-        const existingSession = prev.find(session => session.table_number === printPreview.table_number);
+      // Add to table session
+      addOrderToTableSession(printedOrder);
 
-        if (existingSession) {
-          // Add to existing session
-          const updatedSession = {
-            ...existingSession,
-            part_orders: [...existingSession.part_orders, printedOrder],
-            total_amount: existingSession.total_amount + calculateCartTotal(printPreview.items).total
-          };
-
-          return prev.map(session =>
-            session.table_number === printPreview.table_number ? updatedSession : session
-          );
-        } else {
-          // Create new session
-          const newSession: TableSession = {
-            table_number: printPreview.table_number,
-            customer_name: customerName,
-            part_orders: [printedOrder],
-            total_amount: calculateCartTotal(printPreview.items).total,
-            status: 'active',
-            created_at: new Date().toISOString()
-          };
-
-          return [...prev, newSession];
-        }
-      });
+      // Trigger browser print dialog
+      window.print();
 
       // Clear cart and form
       setCart([]);
@@ -226,6 +231,28 @@ const ServerDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelPrint = () => {
+    if (!printPreview) return;
+
+    // Add order to table session even if not printed
+    const unprintedOrder: PartOrder = {
+      ...printPreview,
+      status: 'sent_to_kitchen',
+      printed_at: undefined
+    };
+
+    addOrderToTableSession(unprintedOrder);
+
+    // Clear cart and form
+    setCart([]);
+    setSpecialInstructions('');
+
+    // Close modal
+    setPrintPreview(null);
+
+    toast.success(`Part order added to table session for Table ${printPreview.table_number}`);
   };
 
   const updatePartOrderStatus = async (sessionIndex: number, partOrderId: string, newStatus: PartOrder['status']) => {
@@ -927,10 +954,10 @@ const ServerDashboard: React.FC = () => {
 
               <div className="p-6 border-t flex justify-end space-x-3">
                 <button
-                  onClick={() => setPrintPreview(null)}
+                  onClick={handleCancelPrint}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
                 >
-                  Cancel
+                  Skip Print & Add to Session
                 </button>
                 <button
                   onClick={handlePrintConfirm}
