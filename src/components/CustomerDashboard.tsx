@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MenuItem, Order, OrderItem, mockMenuItems, mockOrders, mockOrderItems, getOrderItemsWithMenuItems, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/mockAuth';
 import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
@@ -39,39 +39,29 @@ const ServerDashboard: React.FC = () => {
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const [printPreview, setPrintPreview] = useState<PartOrder | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
-  const printPreviewRef = useRef<PartOrder | null>(null);
   const { user } = useAuth();
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    printPreviewRef.current = printPreview;
-  }, [printPreview]);
 
   useEffect(() => {
     fetchMenuItems();
     fetchTableSessions();
 
-    // Handle print completion
-    const afterPrint = () => {
-      console.log('Print ended');
-      // If print preview was open, close it after printing
-      const currentPreview = printPreviewRef.current;
-      if (currentPreview && isPrinting) {
-        setPrintPreview(null);
-        setCart([]);
-        setSpecialInstructions('');
-        setIsPrinting(false);
-        toast.success(`Part order sent to kitchen for Table ${currentPreview.table_number}`);
-      }
+    // Prevent navigation during print
+    const beforePrint = () => {
+      console.log('Print started');
     };
 
+    const afterPrint = () => {
+      console.log('Print ended');
+    };
+
+    window.addEventListener('beforeprint', beforePrint);
     window.addEventListener('afterprint', afterPrint);
 
     return () => {
+      window.removeEventListener('beforeprint', beforePrint);
       window.removeEventListener('afterprint', afterPrint);
     };
-  }, [isPrinting]);
+  }, []);
 
   const fetchMenuItems = async () => {
     try {
@@ -88,37 +78,30 @@ const ServerDashboard: React.FC = () => {
 
   const fetchTableSessions = async () => {
     try {
-      // Load from localStorage
-      const stored = localStorage.getItem('tableSessions');
-      if (stored) {
-        setTableSessions(JSON.parse(stored));
-      } else {
-        // Mock table sessions - in real app this would come from database
-        const mockSessions: TableSession[] = [
-          {
-            table_number: 5,
-            customer_name: 'Smith Family',
-            part_orders: [
-              {
-                id: 'part-1',
-                table_number: 5,
-                items: [
-                  { item: mockMenuItems[0], quantity: 2 },
-                  { item: mockMenuItems[1], quantity: 1 }
-                ],
-                status: 'served',
-                created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-                printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
-              }
-            ],
-            total_amount: 40.97,
-            status: 'active',
-            created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
-          }
-        ];
-        setTableSessions(mockSessions);
-        localStorage.setItem('tableSessions', JSON.stringify(mockSessions));
-      }
+      // Mock table sessions - in real app this would come from database
+      const mockSessions: TableSession[] = [
+        {
+          table_number: 5,
+          customer_name: 'Smith Family',
+          part_orders: [
+            {
+              id: 'part-1',
+              table_number: 5,
+              items: [
+                { item: mockMenuItems[0], quantity: 2 },
+                { item: mockMenuItems[1], quantity: 1 }
+              ],
+              status: 'served',
+              created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+              printed_at: new Date(Date.now() - 29 * 60 * 1000).toISOString()
+            }
+          ],
+          total_amount: 40.97,
+          status: 'active',
+          created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString()
+        }
+      ];
+      setTableSessions(mockSessions);
     } catch (error) {
       console.error('Error fetching table sessions:', error);
       toast.error('Failed to load table sessions');
@@ -188,7 +171,6 @@ const ServerDashboard: React.FC = () => {
     setTableSessions(prev => {
       const existingSession = prev.find(session => session.table_number === order.table_number);
 
-      let updated;
       if (existingSession) {
         // Add to existing session
         const updatedSession = {
@@ -197,7 +179,7 @@ const ServerDashboard: React.FC = () => {
           total_amount: existingSession.total_amount + calculateCartTotal(order.items).total
         };
 
-        updated = prev.map(session =>
+        return prev.map(session =>
           session.table_number === order.table_number ? updatedSession : session
         );
       } else {
@@ -211,12 +193,8 @@ const ServerDashboard: React.FC = () => {
           created_at: new Date().toISOString()
         };
 
-        updated = [...prev, newSession];
+        return [...prev, newSession];
       }
-
-      // Persist to localStorage
-      localStorage.setItem('tableSessions', JSON.stringify(updated));
-      return updated;
     });
   };
 
@@ -233,24 +211,23 @@ const ServerDashboard: React.FC = () => {
         printed_at: new Date().toISOString()
       };
 
-      // Add to table session BEFORE printing
+      // Add to table session
       addOrderToTableSession(printedOrder);
 
-      // Set printing flag
-      setIsPrinting(true);
-
-      // Small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 200));
-
       // Trigger browser print dialog
-      // Modal will be closed by afterprint event handler
-      setPrintPreview(printedOrder);
       window.print();
+
+      // Clear cart and form
+      setCart([]);
+      setSpecialInstructions('');
+
+      // Close modal
+      setPrintPreview(null);
+
+      toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
     } catch (error) {
       console.error('Error sending part order:', error);
       toast.error('Failed to send part order');
-      setPrintPreview(null);
-      setIsPrinting(false);
     } finally {
       setLoading(false);
     }
@@ -284,21 +261,19 @@ const ServerDashboard: React.FC = () => {
         const updated = [...prev];
         const session = updated[sessionIndex];
         const partOrderIndex = session.part_orders.findIndex(po => po.id === partOrderId);
-
+        
         if (partOrderIndex !== -1) {
           updated[sessionIndex] = {
             ...session,
-            part_orders: session.part_orders.map((po, idx) =>
+            part_orders: session.part_orders.map((po, idx) => 
               idx === partOrderIndex ? { ...po, status: newStatus } : po
             )
           };
         }
-
-        // Persist to localStorage
-        localStorage.setItem('tableSessions', JSON.stringify(updated));
+        
         return updated;
       });
-
+      
       toast.success(`Part order status updated to ${newStatus}`);
     } catch (error) {
       console.error('Error updating part order status:', error);
@@ -324,16 +299,13 @@ const ServerDashboard: React.FC = () => {
 
       if (checkoutData.url) {
         // Mark session as closed
-        setTableSessions(prev => {
-          const updated = prev.map(s =>
-            s.table_number === session.table_number
+        setTableSessions(prev => 
+          prev.map(s => 
+            s.table_number === session.table_number 
               ? { ...s, status: 'closed' as const }
               : s
-          );
-          // Persist to localStorage
-          localStorage.setItem('tableSessions', JSON.stringify(updated));
-          return updated;
-        });
+          )
+        );
         
         window.location.href = checkoutData.url;
       } else {
@@ -354,19 +326,16 @@ const ServerDashboard: React.FC = () => {
   const handleInPersonPaymentSuccess = () => {
     if (showInPersonPayment) {
       const tableNumber = parseInt(showInPersonPayment);
-
+      
       // Mark session as closed and paid
-      setTableSessions(prev => {
-        const updated = prev.map(session =>
-          session.table_number === tableNumber
+      setTableSessions(prev => 
+        prev.map(session => 
+          session.table_number === tableNumber 
             ? { ...session, status: 'closed' as const }
             : session
-        );
-        // Persist to localStorage
-        localStorage.setItem('tableSessions', JSON.stringify(updated));
-        return updated;
-      });
-
+        )
+      );
+      
       toast.success('In-person payment completed successfully!');
       setShowInPersonPayment(null);
     }
@@ -861,6 +830,7 @@ const ServerDashboard: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
+                {/* Print Preview Content */}
                 <div className="space-y-6">
                 {/* Header */}
                 <div className="text-center border-b pb-4">
@@ -982,7 +952,7 @@ const ServerDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-6 border-t flex justify-end space-x-3 print:hidden">
+              <div className="p-6 border-t flex justify-end space-x-3">
                 <button
                   onClick={handleCancelPrint}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
@@ -1001,11 +971,11 @@ const ServerDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Hidden Print-Only Version */}
-          <div className="print-container fixed left-[-9999px] top-0 w-full bg-white">
-            <div className="space-y-6">
+          {/* Hidden Print-Only Content */}
+          <div className="hidden print:block print-container">
+            <div className="space-y-6 p-4">
               {/* Header */}
-              <div className="text-center border-b-2 border-black pb-4">
+              <div className="text-center border-b-2 border-gray-800 pb-4">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">Kitchen Order</h1>
                 <div className="text-sm text-gray-600">
                   {new Date().toLocaleString()}
@@ -1013,7 +983,7 @@ const ServerDashboard: React.FC = () => {
               </div>
 
               {/* Order Details */}
-              <div className="grid grid-cols-2 gap-4 bg-gray-100 p-4 rounded border-2 border-gray-300">
+              <div className="grid grid-cols-2 gap-4 bg-gray-100 p-4 rounded border border-gray-300">
                 <div>
                   <div className="text-sm font-semibold text-gray-600 mb-1">Server Name</div>
                   <div className="font-bold text-gray-900 text-lg">{user?.full_name || 'Server'}</div>
@@ -1032,10 +1002,10 @@ const ServerDashboard: React.FC = () => {
 
               {/* Order Items */}
               <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 border-b-2 border-black pb-2">Order Items</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 border-b-2 border-gray-800 pb-2">Order Items</h3>
                 <div className="space-y-3">
                   {printPreview.items.map((item, index) => (
-                    <div key={index} className="border-2 border-gray-300 p-3 rounded bg-gray-50">
+                    <div key={index} className="border-2 border-gray-300 p-3 rounded">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="font-bold text-gray-900 text-xl mb-1">
@@ -1043,7 +1013,7 @@ const ServerDashboard: React.FC = () => {
                           </div>
                           <div className="text-sm text-gray-700 mb-2">{item.item.description}</div>
                           <div className="flex items-center space-x-2">
-                            <span className="text-xs px-2 py-1 bg-amber-200 border border-amber-400 rounded font-semibold">
+                            <span className="text-xs px-2 py-1 bg-gray-200 border border-gray-400 rounded font-semibold">
                               {item.item.category}
                             </span>
                             <span className="text-xs px-2 py-1 bg-gray-200 border border-gray-400 rounded font-semibold">
@@ -1084,7 +1054,7 @@ const ServerDashboard: React.FC = () => {
               )}
 
               {/* Order Summary */}
-              <div className="border-t-4 border-black pt-4">
+              <div className="border-t-4 border-gray-800 pt-4">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">Part Order Summary</h3>
                 <div className="space-y-2 text-lg">
                   {(() => {
@@ -1108,7 +1078,7 @@ const ServerDashboard: React.FC = () => {
                           <span>Tax:</span>
                           <span>£{tax.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-2xl font-bold text-gray-900 border-t-4 border-black pt-2 mt-2">
+                        <div className="flex justify-between text-2xl font-bold text-gray-900 border-t-4 border-gray-800 pt-2 mt-2">
                           <span>TOTAL:</span>
                           <span>£{total.toFixed(2)}</span>
                         </div>
@@ -1119,7 +1089,7 @@ const ServerDashboard: React.FC = () => {
               </div>
 
               {/* Footer */}
-              <div className="text-center text-sm text-gray-600 border-t-2 border-black pt-4">
+              <div className="text-center text-sm text-gray-600 border-t-2 border-gray-800 pt-4">
                 <div className="font-bold">Part Order ID: {printPreview.id}</div>
                 <div className="mt-1">Please prepare items according to kitchen workflow</div>
               </div>
