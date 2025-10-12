@@ -4,10 +4,11 @@
 
 /* Position print container off-screen normally */
 .print-container {
-  position: absolute;
+  position: fixed;
   left: -9999px;
   top: 0;
-  width: 100%;
+  width: 210mm;
+  background: white;
 }
 
 @media print {
@@ -26,36 +27,26 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    overflow: visible;
   }
 
-  /* First, show everything as visible */
+  /* Hide everything except print container */
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
 
-  /* Then show only print container */
-  .print-container {
-    visibility: visible !important;
-    position: static !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 1.5rem !important;
-    background: white !important;
-    display: block !important;
-  }
-
-  /* Show all children of print container */
+  /* Show only print container and descendants */
+  .print-container,
   .print-container * {
     visibility: visible !important;
   }
 
-  /* Hide non-print elements */
-  .print\:hidden,
-  [class*="print:hidden"] {
-    display: none !important;
+  /* Position print container for printing */
+  .print-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    padding: 1.5rem !important;
+    background: white !important;
   }
 }
