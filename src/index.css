@@ -3,23 +3,26 @@
 @tailwind utilities;
 
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    margin: 1cm;
   }
 
-  #print-content,
-  #print-content * {
-    visibility: visible;
-  }
-
-  #print-content {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .print\:hidden {
     display: none !important;
+  }
+
+  .print-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
 }

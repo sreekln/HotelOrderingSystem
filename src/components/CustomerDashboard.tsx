@@ -782,21 +782,22 @@ const ServerDashboard: React.FC = () => {
 
       {/* Print Preview Modal */}
       {printPreview && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-6 border-b flex justify-between items-center print:hidden">
-              <h2 className="text-xl font-bold text-gray-900">Print Preview - Kitchen Order</h2>
-              <button
-                onClick={() => setPrintPreview(null)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 print:hidden">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Print Preview - Kitchen Order</h2>
+                <button
+                  onClick={() => setPrintPreview(null)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* Print Content */}
-              <div className="space-y-6" id="print-content">
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Print Preview Content */}
+                <div className="space-y-6">
                 {/* Header */}
                 <div className="text-center border-b pb-4">
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">Kitchen Order</h1>
@@ -914,27 +915,153 @@ const ServerDashboard: React.FC = () => {
                   <div>Part Order ID: {printPreview.id}</div>
                   <div className="mt-1">Please prepare items according to kitchen workflow</div>
                 </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t flex justify-end space-x-3">
+                <button
+                  onClick={() => setPrintPreview(null)}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmPrint}
+                  disabled={loading}
+                  className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  {loading ? 'Printing...' : 'Print Order'}
+                </button>
               </div>
             </div>
+          </div>
 
-            <div className="p-6 border-t flex justify-end space-x-3 print:hidden">
-              <button
-                onClick={() => setPrintPreview(null)}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPrint}
-                disabled={loading}
-                className="px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center"
-              >
-                <Printer className="h-4 w-4 mr-2" />
-                {loading ? 'Printing...' : 'Print Order'}
-              </button>
+          {/* Hidden Print-Only Content */}
+          <div className="hidden print:block print-container">
+            <div className="space-y-6 p-4">
+              {/* Header */}
+              <div className="text-center border-b-2 border-gray-800 pb-4">
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Kitchen Order</h1>
+                <div className="text-sm text-gray-600">
+                  {new Date().toLocaleString()}
+                </div>
+              </div>
+
+              {/* Order Details */}
+              <div className="grid grid-cols-2 gap-4 bg-gray-100 p-4 rounded border border-gray-300">
+                <div>
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Server Name</div>
+                  <div className="font-bold text-gray-900 text-lg">{user?.full_name || 'Server'}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Table Number</div>
+                  <div className="font-bold text-gray-900 text-3xl">Table {printPreview.table_number}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Order Time</div>
+                  <div className="font-bold text-gray-900">
+                    {new Date(printPreview.created_at).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Items */}
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3 border-b-2 border-gray-800 pb-2">Order Items</h3>
+                <div className="space-y-3">
+                  {printPreview.items.map((item, index) => (
+                    <div key={index} className="border-2 border-gray-300 p-3 rounded">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-bold text-gray-900 text-xl mb-1">
+                            {item.quantity}x {item.item.name}
+                          </div>
+                          <div className="text-sm text-gray-700 mb-2">{item.item.description}</div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs px-2 py-1 bg-gray-200 border border-gray-400 rounded font-semibold">
+                              {item.item.category}
+                            </span>
+                            <span className="text-xs px-2 py-1 bg-gray-200 border border-gray-400 rounded font-semibold">
+                              {item.item.food_category}
+                            </span>
+                            <span className="text-xs text-gray-600 font-medium">{item.item.company}</span>
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="font-bold text-gray-900 text-lg">
+                            £{(item.item.price * item.quantity).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            £{item.item.price.toFixed(2)} each
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Special Instructions */}
+              {printPreview.special_instructions && (
+                <div className="bg-yellow-100 border-4 border-yellow-600 rounded p-4">
+                  <div className="flex items-start">
+                    <div className="text-yellow-800 mr-3 mt-1">
+                      <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-bold text-yellow-900 mb-1 text-lg">⚠️ SPECIAL INSTRUCTIONS:</div>
+                      <div className="text-yellow-900 font-bold text-lg">{printPreview.special_instructions}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Order Summary */}
+              <div className="border-t-4 border-gray-800 pt-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">Part Order Summary</h3>
+                <div className="space-y-2 text-lg">
+                  {(() => {
+                    const subtotal = printPreview.items.reduce(
+                      (sum, item) => sum + (item.item.price * item.quantity),
+                      0
+                    );
+                    const tax = printPreview.items.reduce(
+                      (sum, item) => sum + (item.item.price * item.quantity * item.item.tax_rate / 100),
+                      0
+                    );
+                    const total = subtotal + tax;
+
+                    return (
+                      <>
+                        <div className="flex justify-between text-gray-800 font-semibold">
+                          <span>Subtotal:</span>
+                          <span>£{subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-800 font-semibold">
+                          <span>Tax:</span>
+                          <span>£{tax.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-2xl font-bold text-gray-900 border-t-4 border-gray-800 pt-2 mt-2">
+                          <span>TOTAL:</span>
+                          <span>£{total.toFixed(2)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="text-center text-sm text-gray-600 border-t-2 border-gray-800 pt-4">
+                <div className="font-bold">Part Order ID: {printPreview.id}</div>
+                <div className="mt-1">Please prepare items according to kitchen workflow</div>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
