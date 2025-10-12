@@ -265,10 +265,10 @@ const ServerDashboard: React.FC = () => {
       // Trigger browser print dialog
       // Use setTimeout to ensure the DOM is ready
       setTimeout(() => {
-        window.print();
+        // Set up event listener for when print dialog closes
+        const handleAfterPrint = () => {
+          window.removeEventListener('afterprint', handleAfterPrint);
 
-        // Wait for print dialog to close before cleaning up
-        setTimeout(() => {
           // Refresh table sessions
           fetchTableSessions();
 
@@ -280,7 +280,10 @@ const ServerDashboard: React.FC = () => {
           setPrintPreview(null);
 
           toast.success(`Part order sent to kitchen for Table ${printPreview.table_number}`);
-        }, 500);
+        };
+
+        window.addEventListener('afterprint', handleAfterPrint);
+        window.print();
       }, 100);
     } catch (error: any) {
       console.error('Error sending part order:', error);
