@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { DollarSign, CreditCard, Printer, Edit2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
+import InPersonPayment from './InPersonPayment';
 
 interface PartOrderItem {
   id: string;
@@ -53,6 +54,7 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
   const [editableItems, setEditableItems] = useState<{ [sessionId: string]: EditableItem[] }>({});
   const [printReceipt, setPrintReceipt] = useState<TableSession | null>(null);
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
+  const [showInPersonPayment, setShowInPersonPayment] = useState<{ sessionId: string; amount: number } | null>(null);
 
   useEffect(() => {
     fetchClosedSessions();
@@ -251,50 +253,38 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
     }
   };
 
-  const handleStripePayment = async (sessionId: string) => {
+  const handleStripePayment = (sessionId: string) => {
+    const session = closedSessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const items = editableItems[sessionId];
+    const totals = calculateTotals(items);
+
+    setShowInPersonPayment({ sessionId, amount: totals.total });
+  };
+
+  const handleInPersonPaymentSuccess = async () => {
+    if (!showInPersonPayment) return;
+
     try {
-      setPaymentLoading(sessionId);
+      const { error } = await supabase
+        .from('table_sessions')
+        .update({ payment_status: 'paid' })
+        .eq('id', showInPersonPayment.sessionId);
 
-      const session = closedSessions.find(s => s.id === sessionId);
-      if (!session) return;
+      if (error) throw error;
 
-      const items = editableItems[sessionId];
-      const totals = calculateTotals(items);
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-payment-intent`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amount: Math.round(totals.total * 100),
-            currency: 'gbp',
-            description: `Table ${session.table_number} - Session ${session.id}`,
-            order_id: session.id,
-            use_checkout: true
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to create payment session');
-      }
-
-      const data = await response.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No payment URL returned');
-      }
+      toast.success('Payment completed successfully');
+      setShowInPersonPayment(null);
+      await fetchClosedSessions();
     } catch (error) {
-      console.error('Error processing Stripe payment:', error);
-      toast.error('Failed to process Stripe payment');
-      setPaymentLoading(null);
+      console.error('Error updating payment status:', error);
+      toast.error('Failed to update payment status');
     }
+  };
+
+  const handleInPersonPaymentCancel = () => {
+    setShowInPersonPayment(null);
   };
 
   const handlePrintReceipt = (session: TableSession) => {
@@ -517,6 +507,15 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
             );
           })}
         </div>
+      )}
+
+      {showInPersonPayment && (
+        <InPersonPayment
+          orderId={`table-${showInPersonPayment.sessionId}`}
+          amount={showInPersonPayment.amount}
+          onSuccess={handleInPersonPaymentSuccess}
+          onCancel={handleInPersonPaymentCancel}
+        />
       )}
 
       {printReceipt && createPortal(
