@@ -61,8 +61,8 @@ export default function AdminDashboard() {
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
-  const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu' | 'tables'>('overview');
+  const [reportFilter, setReportFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [menuForm, setMenuForm] = useState({
@@ -78,33 +78,35 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [reportPeriod]);
+  }, [reportFilter]);
 
   const fetchDashboardData = async () => {
     try {
-      // Calculate date range based on report period
+      // Calculate date range based on report filter
       const now = new Date();
-      let startDate: Date;
+      let startDate: Date | null = null;
 
-      switch (reportPeriod) {
-        case 'daily':
+      switch (reportFilter) {
+        case 'today':
           startDate = new Date(now);
           startDate.setHours(0, 0, 0, 0);
           break;
-        case 'weekly':
+        case 'week':
           startDate = new Date(now);
-          startDate.setDate(now.getDate() - 7);
+          startDate.setDate(now.getDate() - now.getDay());
           startDate.setHours(0, 0, 0, 0);
           break;
-        case 'monthly':
-          startDate = new Date(now);
-          startDate.setMonth(now.getMonth() - 1);
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
           startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'all':
+          startDate = null;
           break;
       }
 
       // Fetch table sessions from database with date filter
-      const { data, error } = await supabase
+      let query = supabase
         .from('table_sessions')
         .select(`
           *,
@@ -115,9 +117,13 @@ export default function AdminDashboard() {
               menu_items (*)
             )
           )
-        `)
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: false });
+        `);
+
+      if (startDate) {
+        query = query.gte('created_at', startDate.toISOString());
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -327,6 +333,64 @@ export default function AdminDashboard() {
           <Settings className="h-8 w-8 mr-3 text-purple-600" />
           Admin Dashboard
         </h1>
+
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600 flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="width" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filter:
+            </span>
+            <button
+              onClick={() => setReportFilter('today')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                reportFilter === 'today'
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setReportFilter('week')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                reportFilter === 'week'
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              This Week
+            </button>
+            <button
+              onClick={() => setReportFilter('month')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                reportFilter === 'month'
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setReportFilter('all')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                reportFilter === 'all'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+
+          <button className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Export Excel
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -336,7 +400,8 @@ export default function AdminDashboard() {
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'sessions', label: 'Table Sessions' },
-              { key: 'menu', label: 'Menu Management' }
+              { key: 'menu', label: 'Menu Management' },
+              { key: 'tables', label: 'Tables' }
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -357,45 +422,6 @@ export default function AdminDashboard() {
       {/* Content */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Report Period Filter */}
-          <div className="bg-white rounded-lg shadow-sm border p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Reports</h3>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setReportPeriod('daily')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    reportPeriod === 'daily'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Daily
-                </button>
-                <button
-                  onClick={() => setReportPeriod('weekly')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    reportPeriod === 'weekly'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Weekly
-                </button>
-                <button
-                  onClick={() => setReportPeriod('monthly')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    reportPeriod === 'monthly'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Monthly
-                </button>
-              </div>
-            </div>
-          </div>
-
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <div className="bg-white rounded-lg shadow-sm border p-6">
