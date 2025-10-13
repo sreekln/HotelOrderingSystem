@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MenuItem, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/auth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, Save, X, Search, User, Shield, Printer, Coffee, Utensils } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, Save, X, Search, User, Shield, Printer, Coffee, Utensils, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import TableClosedTab from './TableClosedTab';
@@ -36,12 +36,21 @@ interface TableSession {
   payment_status?: string;
 }
 
+interface Table {
+  id: string;
+  table_name: string;
+}
+
 const ServerDashboard: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<{ item: MenuItem; quantity: number }[]>([]);
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState<number>(1);
+  const [selectedTableName, setSelectedTableName] = useState<string>('');
+  const [tables, setTables] = useState<Table[]>([]);
+  const [tableSearchTerm, setTableSearchTerm] = useState('');
+  const [showTableDropdown, setShowTableDropdown] = useState(false);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'order' | 'tables' | 'closed'>('order');
@@ -52,6 +61,7 @@ const ServerDashboard: React.FC = () => {
   useEffect(() => {
     fetchMenuItems();
     fetchTableSessions();
+    fetchTables();
 
     // Prevent navigation during print
     const beforePrint = () => {
@@ -62,12 +72,22 @@ const ServerDashboard: React.FC = () => {
       console.log('Print ended');
     };
 
+    // Close dropdown when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.table-dropdown-container')) {
+        setShowTableDropdown(false);
+      }
+    };
+
     window.addEventListener('beforeprint', beforePrint);
     window.addEventListener('afterprint', afterPrint);
+    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
       window.removeEventListener('beforeprint', beforePrint);
       window.removeEventListener('afterprint', afterPrint);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -87,6 +107,23 @@ const ServerDashboard: React.FC = () => {
       toast.error('Failed to load menu items');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTables = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tables')
+        .select('*')
+        .is('deleted_at', null)
+        .order('table_name', { ascending: true });
+
+      if (error) throw error;
+
+      setTables(data || []);
+    } catch (error) {
+      console.error('Error fetching tables:', error);
+      toast.error('Failed to load tables');
     }
   };
 
@@ -165,6 +202,11 @@ const ServerDashboard: React.FC = () => {
   const sendPartOrder = async () => {
     if (!user || cart.length === 0) {
       toast.error('Please add items to cart');
+      return;
+    }
+
+    if (!selectedTableName) {
+      toast.error('Please select a table');
       return;
     }
 
@@ -606,17 +648,68 @@ const ServerDashboard: React.FC = () => {
               
               <div className="p-4">
                 {/* Table Info */}
-                <div className="mb-4">
+                <div className="mb-4 relative table-dropdown-container">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Table Number
+                    Table
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={selectedTable}
-                    onChange={(e) => setSelectedTable(parseInt(e.target.value) || 1)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowTableDropdown(!showTableDropdown)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                    >
+                      <span className={selectedTableName ? 'text-gray-900' : 'text-gray-500'}>
+                        {selectedTableName || 'Select a table'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-400" />
+                    </button>
+
+                    {showTableDropdown && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
+                        <div className="p-2 border-b">
+                          <input
+                            type="text"
+                            value={tableSearchTerm}
+                            onChange={(e) => setTableSearchTerm(e.target.value)}
+                            placeholder="Search tables..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {tables
+                            .filter(table =>
+                              table.table_name.toLowerCase().includes(tableSearchTerm.toLowerCase())
+                            )
+                            .map((table) => (
+                              <button
+                                key={table.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTableName(table.table_name);
+                                  setSelectedTable(parseInt(table.table_name.replace(/\D/g, '')) || 1);
+                                  setShowTableDropdown(false);
+                                  setTableSearchTerm('');
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-amber-50 transition-colors"
+                              >
+                                {table.table_name}
+                              </button>
+                            ))}
+                          {tables.filter(table =>
+                            table.table_name.toLowerCase().includes(tableSearchTerm.toLowerCase())
+                          ).length === 0 && (
+                            <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                              No tables found
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {!selectedTableName && (
+                    <p className="text-xs text-red-600 mt-1">Please select a table</p>
+                  )}
                 </div>
 
                 {cart.length === 0 ? (

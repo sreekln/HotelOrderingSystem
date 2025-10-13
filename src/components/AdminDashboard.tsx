@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
 import { supabase } from '../lib/supabase';
 import { getTableSessions } from '../services/tableSessionService';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Users, 
-  ShoppingBag, 
+import {
+  DollarSign,
+  TrendingUp,
+  Users,
+  ShoppingBag,
   Plus,
   Edit,
   Trash2,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import TablesManagement from './TablesManagement';
 
 // Part Orders and Table Sessions interfaces (matching ServerDashboard)
 interface PartOrder {
@@ -61,7 +62,7 @@ export default function AdminDashboard() {
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu' | 'tables'>('overview');
   const [reportFilter, setReportFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -455,7 +456,8 @@ export default function AdminDashboard() {
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'sessions', label: 'Table Sessions' },
-              { key: 'menu', label: 'Menu Management' }
+              { key: 'menu', label: 'Menu Management' },
+              { key: 'tables', label: 'Tables' }
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -860,6 +862,10 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeTab === 'tables' && (
+        <TablesManagement />
       )}
     </div>
   );
