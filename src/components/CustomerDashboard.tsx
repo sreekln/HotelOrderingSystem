@@ -1083,14 +1083,9 @@ const ServerDashboard: React.FC = () => {
                 <div className="space-y-3">
                   {printPreview.items.map((item, index) => (
                     <div key={index} className="pb-2 border-b border-gray-300">
-                      <div className="flex justify-between items-start mb-1">
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-900">
-                            {item.quantity}x {item.item.name}
-                          </div>
-                        </div>
+                      <div className="mb-1">
                         <div className="font-bold text-gray-900">
-                          £{(item.item.price * item.quantity).toFixed(2)}
+                          {item.quantity}x {item.item.name}
                         </div>
                       </div>
                       {item.item.description && (
@@ -1103,41 +1098,6 @@ const ServerDashboard: React.FC = () => {
                       )}
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Order Summary */}
-              <div className="border-t-2 border-gray-800 pt-3">
-                <h3 className="text-base font-bold text-gray-900 mb-2">Part Order Summary</h3>
-                <div className="space-y-1">
-                  {(() => {
-                    const subtotal = printPreview.items.reduce(
-                      (sum, item) => sum + (item.item.price * item.quantity),
-                      0
-                    );
-                    const tax = printPreview.items.reduce(
-                      (sum, item) => sum + (item.item.price * item.quantity * item.item.tax_rate / 100),
-                      0
-                    );
-                    const total = subtotal + tax;
-
-                    return (
-                      <>
-                        <div className="flex justify-between text-gray-800 font-semibold">
-                          <span>Subtotal:</span>
-                          <span>£{subtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-800 font-semibold">
-                          <span>Tax:</span>
-                          <span>£{tax.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-lg font-bold text-gray-900 border-t-2 border-gray-800 pt-2 mt-1">
-                          <span>TOTAL:</span>
-                          <span>£{total.toFixed(2)}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
                 </div>
               </div>
             </div>
