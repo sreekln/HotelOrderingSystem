@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS tables (
 -- Table Sessions Table
 CREATE TABLE IF NOT EXISTS table_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    table_number INTEGER NOT NULL,
+    table_number TEXT NOT NULL,
     server_id UUID REFERENCES users(id) ON DELETE SET NULL,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'ready_to_close', 'closed')),
     payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS part_orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     table_session_id UUID NOT NULL REFERENCES table_sessions(id),
     server_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    table_number INTEGER NOT NULL,
+    table_number TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent_to_kitchen', 'preparing', 'ready', 'served')),
     printed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now(),
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS part_order_items (
 CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    table_number INTEGER,
+    table_number TEXT,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled')),
     payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
     total_amount NUMERIC NOT NULL DEFAULT 0 CHECK (total_amount >= 0),

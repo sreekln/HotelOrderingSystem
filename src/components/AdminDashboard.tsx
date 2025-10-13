@@ -26,7 +26,7 @@ import TablesManagement from './TablesManagement';
 // Part Orders and Table Sessions interfaces (matching ServerDashboard)
 interface PartOrder {
   id: string;
-  table_number: number;
+  table_number: string;
   items: { item: MenuItem; quantity: number }[];
   special_instructions?: string;
   status: 'draft' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served';
@@ -35,7 +35,7 @@ interface PartOrder {
 }
 
 interface TableSession {
-  table_number: number;
+  table_number: string;
   customer_name: string;
   part_orders: PartOrder[];
   total_amount: number;

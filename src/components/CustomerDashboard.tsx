@@ -18,7 +18,7 @@ import {
 interface PartOrder {
   id: string;
   table_session_id?: string;
-  table_number: number;
+  table_number: string;
   items: { item: MenuItem; quantity: number }[];
   special_instructions?: string;
   status: 'draft' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served';
@@ -28,7 +28,7 @@ interface PartOrder {
 
 interface TableSession {
   id?: string;
-  table_number: number;
+  table_number: string;
   part_orders: PartOrder[];
   total_amount: number;
   status: 'active' | 'ready_to_close' | 'closed';
@@ -46,7 +46,7 @@ const ServerDashboard: React.FC = () => {
   const [cart, setCart] = useState<{ item: MenuItem; quantity: number }[]>([]);
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTable, setSelectedTable] = useState<number>(1);
+  const [selectedTable, setSelectedTable] = useState<string>('1');
   const [selectedTableName, setSelectedTableName] = useState<string>('');
   const [tables, setTables] = useState<Table[]>([]);
   const [tableSearchTerm, setTableSearchTerm] = useState('');
@@ -687,7 +687,7 @@ const ServerDashboard: React.FC = () => {
                                 type="button"
                                 onClick={() => {
                                   setSelectedTableName(table.table_name);
-                                  setSelectedTable(parseInt(table.table_name.replace(/\D/g, '')) || 1);
+                                  setSelectedTable(table.table_name);
                                   setShowTableDropdown(false);
                                   setTableSearchTerm('');
                                 }}

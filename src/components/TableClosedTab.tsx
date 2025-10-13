@@ -20,7 +20,7 @@ interface PartOrderItem {
 
 interface PartOrder {
   id: string;
-  table_number: number;
+  table_number: string;
   status: string;
   items: PartOrderItem[];
   created_at: string;
@@ -28,7 +28,7 @@ interface PartOrder {
 
 interface TableSession {
   id: string;
-  table_number: number;
+  table_number: string;
   status: string;
   payment_status: string;
   total_amount: number;

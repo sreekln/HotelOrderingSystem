@@ -12,7 +12,7 @@ export interface PartOrder {
   id?: string;
   table_session_id: string;
   server_id: string;
-  table_number: number;
+  table_number: string;
   status: 'draft' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served';
   printed_at?: string;
   items: PartOrderItem[];
@@ -21,7 +21,7 @@ export interface PartOrder {
 
 export interface TableSession {
   id?: string;
-  table_number: number;
+  table_number: string;
   server_id: string;
   customer_name?: string;
   status: 'active' | 'ready_to_close' | 'closed';
@@ -34,7 +34,7 @@ export interface TableSession {
 }
 
 export async function createTableSession(
-  tableNumber: number,
+  tableNumber: string,
   serverId: string,
   customerName?: string
 ): Promise<{ data: TableSession | null; error: any }> {

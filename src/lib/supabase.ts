@@ -42,7 +42,7 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   payment_status: 'paid' | 'cash';
   special_instructions?: string;
-  table_number?: number;
+  table_number?: string;
   created_at: string;
   updated_at: string;
 }
