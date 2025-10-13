@@ -117,7 +117,7 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
             allItems.push({
               ...item,
               menu_item: item.menu_item,
-              isEditing: false,
+              isEditing: true,
               editedQuantity: item.quantity,
               editedPrice: parseFloat(item.unit_price),
               editedDiscount: parseFloat(item.discount_percent || 0)
@@ -136,38 +136,28 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
     }
   };
 
-  const toggleEdit = (sessionId: string, itemId: string) => {
-    setEditableItems(prev => ({
-      ...prev,
-      [sessionId]: prev[sessionId].map(item =>
-        item.id === itemId ? { ...item, isEditing: !item.isEditing } : item
-      )
-    }));
-  };
-
-  const updateItemField = (sessionId: string, itemId: string, field: string, value: number) => {
+  const updateItemField = async (sessionId: string, itemId: string, field: string, value: number) => {
     setEditableItems(prev => ({
       ...prev,
       [sessionId]: prev[sessionId].map(item =>
         item.id === itemId ? { ...item, [field]: value } : item
       )
     }));
-  };
 
-  const saveItem = async (sessionId: string, itemId: string) => {
     const item = editableItems[sessionId].find(i => i.id === itemId);
     if (!item) return;
 
-    try {
-      const subtotal = item.editedQuantity * item.editedPrice;
-      const discountAmount = subtotal * (item.editedDiscount / 100);
+    const updatedItem = { ...item, [field]: value };
+    const subtotal = updatedItem.editedQuantity * updatedItem.editedPrice;
+    const discountAmount = subtotal * (updatedItem.editedDiscount / 100);
 
+    try {
       const { error } = await supabase
         .from('part_order_items')
         .update({
-          quantity: item.editedQuantity,
-          unit_price: item.editedPrice,
-          discount_percent: item.editedDiscount,
+          quantity: updatedItem.editedQuantity,
+          unit_price: updatedItem.editedPrice,
+          discount_percent: updatedItem.editedDiscount,
           discount_amount: discountAmount,
           subtotal: subtotal - discountAmount
         })
@@ -175,36 +165,18 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
 
       if (error) throw error;
 
-      toast.success('Item updated');
-      toggleEdit(sessionId, itemId);
-      await fetchClosedSessions();
+      const updatedItems = editableItems[sessionId].map(item =>
+        item.id === itemId ? updatedItem : item
+      );
+      const totals = calculateTotals(updatedItems);
+
+      await supabase
+        .from('table_sessions')
+        .update({ total_amount: totals.total })
+        .eq('id', sessionId);
     } catch (error) {
-      console.error('Error saving item:', error);
+      console.error('Error updating item:', error);
       toast.error('Failed to update item');
-    }
-  };
-
-  const cancelEdit = (sessionId: string, itemId: string) => {
-    const originalItem = closedSessions
-      .find(s => s.id === sessionId)
-      ?.part_orders.flatMap(o => o.items)
-      .find(i => i.id === itemId);
-
-    if (originalItem) {
-      setEditableItems(prev => ({
-        ...prev,
-        [sessionId]: prev[sessionId].map(item =>
-          item.id === itemId
-            ? {
-              ...item,
-              isEditing: false,
-              editedQuantity: originalItem.quantity,
-              editedPrice: parseFloat(originalItem.unit_price.toString()),
-              editedDiscount: parseFloat(originalItem.discount_percent?.toString() || '0')
-            }
-            : item
-        )
-      }));
     }
   };
 
@@ -353,103 +325,58 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                 </div>
 
                 <div className="p-4">
-                  <div className="space-y-3 mb-4">
-                    {items.map((item) => {
-                      const itemSubtotal = item.editedQuantity * item.editedPrice;
-                      const itemDiscount = itemSubtotal * (item.editedDiscount / 100);
-                      const itemTotal = itemSubtotal - itemDiscount;
+                  <div className="overflow-x-auto mb-4">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b-2">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Item Name</th>
+                          <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700">Qty</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700">Unit Price</th>
+                          <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {items.map((item) => {
+                          const itemTotal = item.editedQuantity * item.editedPrice;
 
-                      return (
-                        <div key={item.id} className="border rounded-lg p-3">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{item.menu_item.name}</div>
-                              {item.special_instructions && (
-                                <div className="text-xs text-gray-500 mt-1">{item.special_instructions}</div>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => toggleEdit(session.id, item.id)}
-                              className="p-1 text-amber-600 hover:bg-amber-50 rounded ml-2"
-                              title="Edit"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                          </div>
-
-                          {item.isEditing ? (
-                            <div className="space-y-2 bg-gray-50 p-3 rounded">
-                              <div className="grid grid-cols-3 gap-2">
-                                <div>
-                                  <label className="text-xs text-gray-600">Qty</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={item.editedQuantity}
-                                    onChange={(e) => updateItemField(session.id, item.id, 'editedQuantity', parseInt(e.target.value) || 1)}
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs text-gray-600">Price</label>
+                          return (
+                            <tr key={item.id} className="hover:bg-gray-50">
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-gray-900">{item.menu_item.name}</div>
+                                {item.special_instructions && (
+                                  <div className="text-xs text-gray-500 mt-1">{item.special_instructions}</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.editedQuantity}
+                                  onChange={(e) => updateItemField(session.id, item.id, 'editedQuantity', parseInt(e.target.value) || 1)}
+                                  className="w-16 px-2 py-1 border rounded text-center text-sm"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <div className="flex items-center justify-end">
+                                  <span className="mr-1">£</span>
                                   <input
                                     type="number"
                                     min="0"
                                     step="0.01"
                                     value={item.editedPrice}
                                     onChange={(e) => updateItemField(session.id, item.id, 'editedPrice', parseFloat(e.target.value) || 0)}
-                                    className="w-full px-2 py-1 border rounded text-sm"
+                                    className="w-20 px-2 py-1 border rounded text-right text-sm"
                                   />
                                 </div>
-                                <div>
-                                  <label className="text-xs text-gray-600">Disc%</label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.1"
-                                    value={item.editedDiscount}
-                                    onChange={(e) => updateItemField(session.id, item.id, 'editedDiscount', parseFloat(e.target.value) || 0)}
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex justify-end space-x-2">
-                                <button
-                                  onClick={() => cancelEdit(session.id, item.id)}
-                                  className="px-3 py-1 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => saveItem(session.id, item.id)}
-                                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-600 space-y-1">
-                              <div className="flex justify-between">
-                                <span>Quantity: {item.editedQuantity}</span>
-                                <span>Unit: £{item.editedPrice.toFixed(2)}</span>
-                              </div>
-                              {item.editedDiscount > 0 && (
-                                <div className="flex justify-between text-red-600">
-                                  <span>Discount: {item.editedDiscount}%</span>
-                                  <span>-£{itemDiscount.toFixed(2)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between font-semibold text-gray-900 pt-1 border-t">
-                                <span>Total:</span>
-                                <span>£{itemTotal.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                              </td>
+                              <td className="px-3 py-2 text-right font-semibold text-gray-900">
+                                £{itemTotal.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
 
                   <div className="border-t pt-3 mb-3">
