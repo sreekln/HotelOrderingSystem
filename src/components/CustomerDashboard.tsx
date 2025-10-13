@@ -31,7 +31,6 @@ interface PartOrder {
 interface TableSession {
   id?: string;
   table_number: number;
-  customer_name: string;
   part_orders: PartOrder[];
   total_amount: number;
   status: 'active' | 'ready_to_close' | 'closed';
@@ -106,7 +105,6 @@ const ServerDashboard: React.FC = () => {
       const sessions: TableSession[] = (data || []).map((session: any) => ({
         id: session.id,
         table_number: session.table_number,
-        customer_name: session.customer_name || 'Guest',
         total_amount: parseFloat(session.total_amount || 0),
         status: session.status,
         created_at: session.created_at,
@@ -205,7 +203,6 @@ const ServerDashboard: React.FC = () => {
         // Create new session
         const newSession: TableSession = {
           table_number: order.table_number,
-          customer_name: 'Guest',
           part_orders: [order],
           total_amount: calculateCartTotal(order.items).total,
           status: 'active',
@@ -767,7 +764,6 @@ const ServerDashboard: React.FC = () => {
                         <h3 className="font-semibold text-gray-900">
                           Table {session.table_number}
                         </h3>
-                        <p className="text-sm text-gray-600">{session.customer_name}</p>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         session.status === 'active' 
