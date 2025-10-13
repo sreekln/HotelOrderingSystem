@@ -139,10 +139,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
+
+      // Clear local state regardless of API response
+      setUser(null);
+
+      // If error is about session not found, it means we're already logged out
+      // So we should treat this as a success
+      if (error && error.message.includes('session_not_found')) {
+        toast.success('Signed out successfully');
+        return;
+      }
+
       if (error) throw error;
       toast.success('Signed out successfully');
     } catch (error: any) {
-      toast.error(error.message);
+      // Even if signOut fails, clear the local state
+      setUser(null);
+
+      // Don't show error if it's just a session issue
+      if (!error.message.includes('session_not_found')) {
+        toast.error(error.message);
+      } else {
+        toast.success('Signed out successfully');
+      }
     }
   };
 
