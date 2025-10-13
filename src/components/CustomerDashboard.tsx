@@ -160,7 +160,8 @@ const ServerDashboard: React.FC = () => {
   const printToKitchen = async (partOrder: PartOrder) => {
     // Show print preview modal
     setPrintPreview(partOrder);
-    return partOrder;
+    return p
+      artOrder;
   };
 
 
