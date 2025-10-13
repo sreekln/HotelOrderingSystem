@@ -330,88 +330,89 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
           <p className="text-gray-500">No closed table sessions</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {closedSessions.map((session) => {
             const items = editableItems[session.id] || [];
             const totals = calculateTotals(items);
 
             return (
               <div key={session.id} className="bg-white rounded-lg shadow-sm border">
-                <div className="p-6 border-b bg-gray-50">
-                  <div className="flex justify-between items-start">
+                <div className="p-4 border-b">
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Table {session.table_number}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <h3 className="font-semibold text-gray-900">Table {session.table_number}</h3>
+                      <p className="text-xs text-gray-500 mt-1">
                         Closed: {new Date(session.closed_at).toLocaleString()}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${session.payment_status === 'paid'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                        {session.payment_status === 'paid' ? 'Paid' : 'Pending Payment'}
-                      </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${session.payment_status === 'paid'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                      {session.payment_status === 'paid' ? 'Paid' : 'Pending'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-lg text-amber-600">
+                      £{totals.total.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {session.part_orders.length} part order{session.part_orders.length !== 1 ? 's' : ''}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Item</th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Quantity</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Price</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Discount %</th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Total</th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {items.map((item) => {
-                          const itemSubtotal = item.editedQuantity * item.editedPrice;
-                          const itemDiscount = itemSubtotal * (item.editedDiscount / 100);
-                          const itemTotal = itemSubtotal - itemDiscount;
+                <div className="p-4">
+                  <div className="space-y-3 mb-4">
+                    {items.map((item) => {
+                      const itemSubtotal = item.editedQuantity * item.editedPrice;
+                      const itemDiscount = itemSubtotal * (item.editedDiscount / 100);
+                      const itemTotal = itemSubtotal - itemDiscount;
 
-                          return (
-                            <tr key={item.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-4">
-                                <div className="font-medium text-gray-900">{item.menu_item.name}</div>
-                                {item.special_instructions && (
-                                  <div className="text-xs text-gray-500 mt-1">{item.special_instructions}</div>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-center">
-                                {item.isEditing ? (
+                      return (
+                        <div key={item.id} className="border rounded-lg p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{item.menu_item.name}</div>
+                              {item.special_instructions && (
+                                <div className="text-xs text-gray-500 mt-1">{item.special_instructions}</div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => toggleEdit(session.id, item.id)}
+                              className="p-1 text-amber-600 hover:bg-amber-50 rounded ml-2"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {item.isEditing ? (
+                            <div className="space-y-2 bg-gray-50 p-3 rounded">
+                              <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                  <label className="text-xs text-gray-600">Qty</label>
                                   <input
                                     type="number"
                                     min="1"
                                     value={item.editedQuantity}
                                     onChange={(e) => updateItemField(session.id, item.id, 'editedQuantity', parseInt(e.target.value) || 1)}
-                                    className="w-20 px-2 py-1 border rounded text-center"
+                                    className="w-full px-2 py-1 border rounded text-sm"
                                   />
-                                ) : (
-                                  <span>{item.editedQuantity}</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-right">
-                                {item.isEditing ? (
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600">Price</label>
                                   <input
                                     type="number"
                                     min="0"
                                     step="0.01"
                                     value={item.editedPrice}
                                     onChange={(e) => updateItemField(session.id, item.id, 'editedPrice', parseFloat(e.target.value) || 0)}
-                                    className="w-24 px-2 py-1 border rounded text-right"
+                                    className="w-full px-2 py-1 border rounded text-sm"
                                   />
-                                ) : (
-                                  <span>£{item.editedPrice.toFixed(2)}</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-right">
-                                {item.isEditing ? (
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600">Disc%</label>
                                   <input
                                     type="number"
                                     min="0"
@@ -419,80 +420,76 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                                     step="0.1"
                                     value={item.editedDiscount}
                                     onChange={(e) => updateItemField(session.id, item.id, 'editedDiscount', parseFloat(e.target.value) || 0)}
-                                    className="w-20 px-2 py-1 border rounded text-right"
+                                    className="w-full px-2 py-1 border rounded text-sm"
                                   />
-                                ) : (
-                                  <span>{item.editedDiscount}%</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-right font-semibold">
-                                £{itemTotal.toFixed(2)}
-                              </td>
-                              <td className="px-4 py-4 text-center">
-                                {item.isEditing ? (
-                                  <div className="flex justify-center space-x-2">
-                                    <button
-                                      onClick={() => saveItem(session.id, item.id)}
-                                      className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                      title="Save"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => cancelEdit(session.id, item.id)}
-                                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                      title="Cancel"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => toggleEdit(session.id, item.id)}
-                                    className="p-1 text-amber-600 hover:bg-amber-50 rounded"
-                                    title="Edit"
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                </div>
+                              </div>
+                              <div className="flex justify-end space-x-2">
+                                <button
+                                  onClick={() => cancelEdit(session.id, item.id)}
+                                  className="px-3 py-1 text-xs border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => saveItem(session.id, item.id)}
+                                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-600 space-y-1">
+                              <div className="flex justify-between">
+                                <span>Quantity: {item.editedQuantity}</span>
+                                <span>Unit: £{item.editedPrice.toFixed(2)}</span>
+                              </div>
+                              {item.editedDiscount > 0 && (
+                                <div className="flex justify-between text-red-600">
+                                  <span>Discount: {item.editedDiscount}%</span>
+                                  <span>-£{itemDiscount.toFixed(2)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-semibold text-gray-900 pt-1 border-t">
+                                <span>Total:</span>
+                                <span>£{itemTotal.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div className="mt-6 border-t pt-4">
-                    <div className="flex justify-end">
-                      <div className="w-80 space-y-2">
-                        <div className="flex justify-between text-gray-700">
-                          <span>Subtotal:</span>
-                          <span>£{totals.subtotal.toFixed(2)}</span>
+                  <div className="border-t pt-3 mb-3">
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between text-gray-700">
+                        <span>Subtotal:</span>
+                        <span>£{totals.subtotal.toFixed(2)}</span>
+                      </div>
+                      {totals.discountTotal > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>Discount:</span>
+                          <span>-£{totals.discountTotal.toFixed(2)}</span>
                         </div>
-                        {totals.discountTotal > 0 && (
-                          <div className="flex justify-between text-red-600">
-                            <span>Discount:</span>
-                            <span>-£{totals.discountTotal.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-gray-700">
-                          <span>Tax:</span>
-                          <span>£{totals.tax.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xl font-bold text-gray-900 border-t pt-2">
-                          <span>Total:</span>
-                          <span>£{totals.total.toFixed(2)}</span>
-                        </div>
+                      )}
+                      <div className="flex justify-between text-gray-700">
+                        <span>Tax:</span>
+                        <span>£{totals.tax.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-gray-900 border-t pt-1">
+                        <span>Total:</span>
+                        <span>£{totals.total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
 
                   {session.payment_status !== 'paid' && (
-                    <div className="mt-6 flex justify-end space-x-3">
+                    <div className="space-y-2">
                       <button
                         onClick={() => handlePrintReceipt(session)}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center"
+                        className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center text-sm"
                       >
                         <Printer className="h-4 w-4 mr-2" />
                         Print Receipt
@@ -500,7 +497,7 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                       <button
                         onClick={() => handleCashPayment(session.id)}
                         disabled={paymentLoading === session.id}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center"
+                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center text-sm font-medium"
                       >
                         <DollarSign className="h-4 w-4 mr-2" />
                         {paymentLoading === session.id ? 'Processing...' : 'Pay by Cash'}
@@ -508,7 +505,7 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                       <button
                         onClick={() => handleStripePayment(session.id)}
                         disabled={paymentLoading === session.id}
-                        className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center"
+                        className="w-full px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center justify-center text-sm font-medium"
                       >
                         <CreditCard className="h-4 w-4 mr-2" />
                         {paymentLoading === session.id ? 'Processing...' : 'Pay with Terminal'}
