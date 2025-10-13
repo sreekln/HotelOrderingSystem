@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
+import { supabase } from '../lib/supabase';
 import { getTableSessions } from '../services/tableSessionService';
 import { 
   DollarSign, 
@@ -61,6 +62,7 @@ export default function AdminDashboard() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
+  const [reportPeriod, setReportPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [menuForm, setMenuForm] = useState({
@@ -76,12 +78,46 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [reportPeriod]);
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch table sessions from database
-      const { data, error } = await getTableSessions();
+      // Calculate date range based on report period
+      const now = new Date();
+      let startDate: Date;
+
+      switch (reportPeriod) {
+        case 'daily':
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'weekly':
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'monthly':
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 1);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+      }
+
+      // Fetch table sessions from database with date filter
+      const { data, error } = await supabase
+        .from('table_sessions')
+        .select(`
+          *,
+          part_orders (
+            *,
+            part_order_items (
+              *,
+              menu_items (*)
+            )
+          )
+        `)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -321,6 +357,45 @@ export default function AdminDashboard() {
       {/* Content */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          {/* Report Period Filter */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Reports</h3>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setReportPeriod('daily')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    reportPeriod === 'daily'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Daily
+                </button>
+                <button
+                  onClick={() => setReportPeriod('weekly')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    reportPeriod === 'weekly'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Weekly
+                </button>
+                <button
+                  onClick={() => setReportPeriod('monthly')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    reportPeriod === 'monthly'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Monthly
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             <div className="bg-white rounded-lg shadow-sm border p-6">
