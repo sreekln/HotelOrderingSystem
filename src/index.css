@@ -24,6 +24,13 @@
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    max-height: none !important;
+  }
+
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 
   /* Hide everything */
@@ -34,7 +41,7 @@
   /* Show only print content */
   .print-only-content {
     display: block !important;
-    position: fixed !important;
+    position: relative !important;
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
@@ -43,8 +50,6 @@
     padding: 0.5cm !important;
     margin: 0 !important;
     z-index: 9999 !important;
-    page-break-after: auto !important;
-    page-break-inside: avoid !important;
     box-sizing: border-box !important;
   }
 
@@ -72,8 +77,25 @@
     border-width: 4px !important;
   }
 
-  .print-only-content > div {
+  .print-only-content table {
+    page-break-inside: auto !important;
+  }
+
+  .print-only-content tr {
     page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  .print-only-content thead {
+    display: table-header-group !important;
+  }
+
+  .print-only-content tbody {
+    display: table-row-group !important;
+  }
+
+  .print-only-content tfoot {
+    display: table-footer-group !important;
   }
 
   /* Ensure content fits on one page */
@@ -103,5 +125,17 @@
     display: flex !important;
     flex-direction: column !important;
     gap: 0.125rem !important;
+  }
+
+  /* Ensure overflow content spans pages */
+  .print-only-content .space-y-4 > div,
+  .print-only-content .overflow-x-auto {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  .print-only-content table tbody {
+    overflow: visible !important;
   }
 }
