@@ -808,20 +808,30 @@ const ServerDashboard: React.FC = () => {
                     </div>
 
                     {/* Close Table Session */}
-                    {session.status === 'active' && (
-                      <button
-                        onClick={() => handleCloseTableSession(session)}
-                        disabled={paymentLoading === session.table_number.toString()}
-                        className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
-                      >
-                        {paymentLoading === session.table_number.toString() ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        ) : (
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                        )}
-                        {paymentLoading === session.table_number.toString() ? 'Closing...' : 'Close'}
-                      </button>
-                    )}
+                    {session.status === 'active' && (() => {
+                      const allOrdersServed = session.part_orders.every(po => po.status === 'served');
+                      return (
+                        <div>
+                          <button
+                            onClick={() => handleCloseTableSession(session)}
+                            disabled={!allOrdersServed || paymentLoading === session.table_number.toString()}
+                            className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
+                          >
+                            {paymentLoading === session.table_number.toString() ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            ) : (
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                            )}
+                            {paymentLoading === session.table_number.toString() ? 'Closing...' : 'Close'}
+                          </button>
+                          {!allOrdersServed && (
+                            <p className="text-xs text-red-600 mt-2 text-center">
+                              All part orders must be marked as "Served" before closing
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
