@@ -137,7 +137,7 @@ export async function createPartOrder(
   }
 }
 
-export async function getTableSessions(serverId?: string): Promise<{ data: any[] | null; error: any }> {
+export async function getTableSessions(serverId?: string, includeAll: boolean = false): Promise<{ data: any[] | null; error: any }> {
   try {
     let query = supabase
       .from('table_sessions')
@@ -151,8 +151,11 @@ export async function getTableSessions(serverId?: string): Promise<{ data: any[]
           )
         )
       `)
-      .eq('status', 'active')
       .order('created_at', { ascending: false });
+
+    if (!includeAll) {
+      query = query.eq('status', 'active');
+    }
 
     if (serverId) {
       query = query.eq('server_id', serverId);

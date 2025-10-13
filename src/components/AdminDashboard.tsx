@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
-import { getTableSessions } from '../services/tableSessionService';
+import { getTableSessions, closeTableSession } from '../services/tableSessionService';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -32,6 +32,7 @@ interface PartOrder {
 }
 
 interface TableSession {
+  id: string;
   table_number: number;
   customer_name: string;
   part_orders: PartOrder[];
@@ -80,13 +81,14 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch table sessions from database
-      const { data, error } = await getTableSessions();
+      // Fetch table sessions from database (include all statuses for admin)
+      const { data, error } = await getTableSessions(undefined, true);
 
       if (error) throw error;
 
       // Transform the data to match the component's expected format
       const sessions: TableSession[] = (data || []).map((session: any) => ({
+        id: session.id,
         table_number: session.table_number,
         customer_name: session.customer_name || 'Guest',
         total_amount: parseFloat(session.total_amount || 0),
@@ -214,18 +216,32 @@ export default function AdminDashboard() {
     try {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       // Remove item from mock data
       const itemIndex = mockMenuItems.findIndex(item => item.id === itemId);
       if (itemIndex !== -1) {
         mockMenuItems.splice(itemIndex, 1);
       }
-      
+
       toast.success('Menu item deleted successfully');
       fetchDashboardData();
     } catch (error) {
       console.error('Error deleting menu item:', error);
       toast.error('Failed to delete menu item');
+    }
+  };
+
+  const handleCloseSession = async (sessionId: string) => {
+    try {
+      const { error } = await closeTableSession(sessionId);
+
+      if (error) throw error;
+
+      toast.success('Table session closed successfully');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error closing table session:', error);
+      toast.error('Failed to close table session');
     }
   };
 
@@ -449,6 +465,9 @@ export default function AdminDashboard() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -495,6 +514,19 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {format(new Date(session.created_at), 'MMM dd, yyyy HH:mm')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {session.status !== 'closed' && (
+                        <button
+                          onClick={() => handleCloseSession(session.id)}
+                          className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors text-xs font-medium"
+                        >
+                          Close
+                        </button>
+                      )}
+                      {session.status === 'closed' && (
+                        <span className="text-gray-400 text-xs">Closed</span>
+                      )}
                     </td>
                   </tr>
                 ))}
