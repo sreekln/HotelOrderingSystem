@@ -151,6 +151,7 @@ export async function getTableSessions(serverId?: string): Promise<{ data: any[]
           )
         )
       `)
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
     if (serverId) {
