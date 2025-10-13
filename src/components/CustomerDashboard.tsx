@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MenuItem, calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/auth';
-import { ShoppingCart, Plus, Minus, Clock, CheckCircle, CreditCard, Save, X, Search, User, DollarSign, Shield, Printer, Coffee, Utensils } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Clock, CheckCircle, Save, X, Search, User, Shield, Printer, Coffee, Utensils } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { createCheckoutSession } from '../lib/stripe';
-import InPersonPayment from './InPersonPayment';
 import TableClosedTab from './TableClosedTab';
 import { supabase } from '../lib/supabase';
 import {
@@ -14,8 +12,7 @@ import {
   createPartOrder,
   getTableSessions,
   updatePartOrderStatus,
-  closeTableSession,
-  updateTableSessionPaymentStatus
+  closeTableSession
 } from '../services/tableSessionService';
 
 interface PartOrder {
@@ -49,7 +46,6 @@ const ServerDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'order' | 'tables' | 'closed'>('order');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
-  const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const [printPreview, setPrintPreview] = useState<PartOrder | null>(null);
   const { user } = useAuth();
 
@@ -382,65 +378,21 @@ const ServerDashboard: React.FC = () => {
     try {
       setPaymentLoading(session.table_number.toString());
 
-      // Create checkout session for the total amount
-      const checkoutData = await createCheckoutSession({
-        price_id: '', // Empty since we're using dynamic pricing
-        success_url: `${window.location.origin}/success?table=${session.table_number}&session_id=${session.id}`,
-        cancel_url: `${window.location.origin}/?payment=cancelled`,
-        mode: 'payment',
-        orderId: `table-${session.table_number}-${Date.now()}`,
-        amount: Math.round(session.total_amount * 100), // Convert to cents
-      });
+      // Close the table session
+      const { error } = await closeTableSession(session.id);
 
-      if (checkoutData.url) {
-        // Mark session as closed in database
-        await closeTableSession(session.id);
+      if (error) throw error;
 
-        // Refresh table sessions
-        await fetchTableSessions();
+      // Refresh table sessions
+      await fetchTableSessions();
 
-        window.location.href = checkoutData.url;
-      } else {
-        throw new Error('No checkout URL received');
-      }
+      toast.success('Table session closed successfully');
     } catch (error: any) {
-      console.error('Payment error:', error);
-      toast.error(error.message || 'Failed to initiate payment');
+      console.error('Error closing session:', error);
+      toast.error(error.message || 'Failed to close session');
     } finally {
       setPaymentLoading(null);
     }
-  };
-
-  const handleInPersonPayment = (session: TableSession) => {
-    setShowInPersonPayment(session.table_number.toString());
-  };
-
-  const handleInPersonPaymentSuccess = async () => {
-    if (showInPersonPayment) {
-      const tableNumber = parseInt(showInPersonPayment);
-      const session = tableSessions.find(s => s.table_number === tableNumber);
-
-      if (session && session.id) {
-        try {
-          // Mark session as closed and paid in database
-          await closeTableSession(session.id);
-          await updateTableSessionPaymentStatus(session.id, 'paid');
-
-          // Refresh table sessions
-          await fetchTableSessions();
-
-          toast.success('In-person payment completed successfully!');
-          setShowInPersonPayment(null);
-        } catch (error) {
-          console.error('Error completing payment:', error);
-          toast.error('Failed to complete payment');
-        }
-      }
-    }
-  };
-
-  const handleInPersonPaymentCancel = () => {
-    setShowInPersonPayment(null);
   };
 
   const groupedMenuItems = menuItems.reduce((acc, item) => {
@@ -857,28 +809,18 @@ const ServerDashboard: React.FC = () => {
 
                     {/* Close Table Session */}
                     {session.status === 'active' && (
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => handleCloseTableSession(session)}
-                          disabled={paymentLoading === session.table_number.toString()}
-                          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
-                        >
-                          {paymentLoading === session.table_number.toString() ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <CreditCard className="h-4 w-4 mr-2" />
-                          )}
-                          {paymentLoading === session.table_number.toString() ? 'Processing...' : 'Close & Pay (Stripe)'}
-                        </button>
-                        
-                        <button
-                          onClick={() => handleInPersonPayment(session)}
-                          className="w-full bg-amber-600 text-white py-2 px-4 rounded-md hover:bg-amber-700 transition-colors flex items-center justify-center text-sm font-medium"
-                        >
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          Pay with Terminal
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleCloseTableSession(session)}
+                        disabled={paymentLoading === session.table_number.toString()}
+                        className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
+                      >
+                        {paymentLoading === session.table_number.toString() ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                        )}
+                        {paymentLoading === session.table_number.toString() ? 'Closing...' : 'Close'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -890,16 +832,6 @@ const ServerDashboard: React.FC = () => {
 
       {activeTab === 'closed' && user && (
         <TableClosedTab userId={user.id} />
-      )}
-
-      {/* In-Person Payment Modal */}
-      {showInPersonPayment && (
-        <InPersonPayment
-          orderId={`table-${showInPersonPayment}`}
-          amount={tableSessions.find(s => s.table_number.toString() === showInPersonPayment)?.total_amount || 0}
-          onSuccess={handleInPersonPaymentSuccess}
-          onCancel={handleInPersonPaymentCancel}
-        />
       )}
 
       {/* Print Preview Modal */}
