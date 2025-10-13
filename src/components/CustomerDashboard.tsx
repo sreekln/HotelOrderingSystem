@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { createCheckoutSession } from '../lib/stripe';
 import InPersonPayment from './InPersonPayment';
+import TableClosedTab from './TableClosedTab';
 import { supabase } from '../lib/supabase';
 import {
   createTableSession,
@@ -46,7 +47,7 @@ const ServerDashboard: React.FC = () => {
   const [selectedTable, setSelectedTable] = useState<number>(1);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'order' | 'tables'>('order');
+  const [activeTab, setActiveTab] = useState<'order' | 'tables' | 'closed'>('order');
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<string | null>(null);
   const [printPreview, setPrintPreview] = useState<PartOrder | null>(null);
@@ -516,7 +517,8 @@ const ServerDashboard: React.FC = () => {
           <nav className="flex space-x-8 px-6">
             {[
               { key: 'order', label: 'Take Order' },
-              { key: 'tables', label: 'Table Sessions' }
+              { key: 'tables', label: 'Table Sessions' },
+              { key: 'closed', label: 'Table Closed' }
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -884,6 +886,10 @@ const ServerDashboard: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'closed' && user && (
+        <TableClosedTab userId={user.id} />
       )}
 
       {/* In-Person Payment Modal */}

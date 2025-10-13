@@ -42,11 +42,11 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Method not allowed' }, 405);
     }
 
-    const { amount, currency, order_id, capture_method, payment_method_types } = await req.json();
+    const { amount, currency, order_id, capture_method, payment_method_types, description, use_checkout } = await req.json();
 
     // Validate required parameters
-    if (!amount || !currency || !order_id) {
-      return corsResponse({ error: 'Missing required parameters: amount, currency, order_id' }, 400);
+    if (!amount || !currency) {
+      return corsResponse({ error: 'Missing required parameters: amount, currency' }, 400);
     }
 
     // Get user from auth token
@@ -106,6 +106,40 @@ Deno.serve(async (req) => {
       customerId = customer.customer_id;
     }
 
+    // If use_checkout is true, create a checkout session instead
+    if (use_checkout) {
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: currency.toLowerCase(),
+              product_data: {
+                name: description || 'Table Payment',
+              },
+              unit_amount: amount,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${req.headers.get('origin') || 'http://localhost:5173'}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get('origin') || 'http://localhost:5173'}/cancel`,
+        metadata: {
+          order_id: order_id || '',
+          user_id: user.id,
+        },
+      });
+
+      console.log(`Created checkout session ${session.id} for ${description || order_id}`);
+
+      return corsResponse({
+        id: session.id,
+        url: session.url,
+      });
+    }
+
     // Create payment intent for in-person payment
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
@@ -114,7 +148,7 @@ Deno.serve(async (req) => {
       capture_method: capture_method || 'automatic',
       payment_method_types: payment_method_types || ['card_present'],
       metadata: {
-        order_id: order_id,
+        order_id: order_id || '',
         user_id: user.id,
       },
     });
