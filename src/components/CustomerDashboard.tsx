@@ -1055,82 +1055,60 @@ const ServerDashboard: React.FC = () => {
           {/* Hidden Print-Only Content */}
           {createPortal(
           <div className="print-only-content">
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Header */}
               <div className="text-center border-b-2 border-gray-800 pb-2">
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">Kitchen Order</h1>
-                <div className="text-xs text-gray-600">
-                  {new Date().toLocaleString()}
-                </div>
               </div>
 
               {/* Order Details */}
-              <div className="grid grid-cols-2 gap-2 bg-gray-100 p-2 rounded border border-gray-300">
-                <div>
-                  <div className="text-xs font-semibold text-gray-600">Server</div>
-                  <div className="font-bold text-gray-900">{user?.full_name || 'Server'}</div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-gray-600">Server Name:</span>
+                  <span className="font-bold text-gray-900">{user?.full_name || 'Server'}</span>
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-gray-600">Table</div>
-                  <div className="font-bold text-gray-900 text-2xl">Table {printPreview.table_number}</div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-gray-600">Table Number:</span>
+                  <span className="font-bold text-gray-900 text-xl">{printPreview.table_number}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-gray-600">Order Time:</span>
+                  <span className="font-bold text-gray-900">{new Date().toLocaleString()}</span>
                 </div>
               </div>
 
               {/* Order Items */}
-              <div>
-                <h3 className="text-base font-bold text-gray-900 mb-2 border-b-2 border-gray-800 pb-1">Order Items</h3>
-                <div className="space-y-2">
+              <div className="border-t-2 border-gray-800 pt-3">
+                <h3 className="text-base font-bold text-gray-900 mb-3">Order Items</h3>
+                <div className="space-y-3">
                   {printPreview.items.map((item, index) => (
-                    <div key={index} className="border-2 border-gray-300 p-2 rounded">
-                      <div className="flex justify-between items-start">
+                    <div key={index} className="pb-2 border-b border-gray-300">
+                      <div className="flex justify-between items-start mb-1">
                         <div className="flex-1">
-                          <div className="font-bold text-gray-900 text-lg">
+                          <div className="font-bold text-gray-900">
                             {item.quantity}x {item.item.name}
                           </div>
-                          <div className="text-xs text-gray-700">{item.item.description}</div>
-                          <div className="flex items-center space-x-1 mt-1">
-                            <span className="text-xs px-1 py-0.5 bg-gray-200 border border-gray-400 rounded font-semibold">
-                              {item.item.category}
-                            </span>
-                            <span className="text-xs px-1 py-0.5 bg-gray-200 border border-gray-400 rounded font-semibold">
-                              {item.item.food_category}
-                            </span>
-                          </div>
                         </div>
-                        <div className="text-right ml-2">
-                          <div className="font-bold text-gray-900">
-                            £{(item.item.price * item.quantity).toFixed(2)}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            £{item.item.price.toFixed(2)} ea
-                          </div>
+                        <div className="font-bold text-gray-900">
+                          £{(item.item.price * item.quantity).toFixed(2)}
                         </div>
                       </div>
+                      {item.item.description && (
+                        <div className="text-xs text-gray-600 mb-1">{item.item.description}</div>
+                      )}
+                      {specialInstructions && (
+                        <div className="bg-yellow-100 border-l-4 border-yellow-600 px-2 py-1 mt-1">
+                          <div className="text-xs font-bold text-yellow-900">Special: {specialInstructions}</div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Special Instructions */}
-              {printPreview.special_instructions && (
-                <div className="bg-yellow-100 border-4 border-yellow-600 rounded p-2">
-                  <div className="flex items-start">
-                    <div className="text-yellow-800 mr-2">
-                      <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div className="font-bold text-yellow-900 text-sm">⚠️ SPECIAL INSTRUCTIONS:</div>
-                      <div className="text-yellow-900 font-bold">{printPreview.special_instructions}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Order Summary */}
-              <div className="border-t-2 border-gray-800 pt-2">
-                <h3 className="text-base font-bold text-gray-900 mb-2">Summary</h3>
+              <div className="border-t-2 border-gray-800 pt-3">
+                <h3 className="text-base font-bold text-gray-900 mb-2">Part Order Summary</h3>
                 <div className="space-y-1">
                   {(() => {
                     const subtotal = printPreview.items.reduce(
@@ -1145,15 +1123,15 @@ const ServerDashboard: React.FC = () => {
 
                     return (
                       <>
-                        <div className="flex justify-between text-gray-800 font-semibold text-sm">
+                        <div className="flex justify-between text-gray-800 font-semibold">
                           <span>Subtotal:</span>
                           <span>£{subtotal.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-gray-800 font-semibold text-sm">
+                        <div className="flex justify-between text-gray-800 font-semibold">
                           <span>Tax:</span>
                           <span>£{tax.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between text-xl font-bold text-gray-900 border-t-2 border-gray-800 pt-1 mt-1">
+                        <div className="flex justify-between text-lg font-bold text-gray-900 border-t-2 border-gray-800 pt-2 mt-1">
                           <span>TOTAL:</span>
                           <span>£{total.toFixed(2)}</span>
                         </div>
@@ -1161,11 +1139,6 @@ const ServerDashboard: React.FC = () => {
                     );
                   })()}
                 </div>
-              </div>
-
-              {/* Footer */}
-              <div className="text-center text-xs text-gray-600 border-t border-gray-800 pt-2">
-                <div className="font-bold">Order ID: {printPreview.id}</div>
               </div>
             </div>
           </div>,
