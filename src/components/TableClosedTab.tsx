@@ -55,6 +55,7 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
   const [printReceipt, setPrintReceipt] = useState<TableSession | null>(null);
   const [paymentLoading, setPaymentLoading] = useState<string | null>(null);
   const [showInPersonPayment, setShowInPersonPayment] = useState<{ sessionId: string; amount: number } | null>(null);
+  const [sessionDiscounts, setSessionDiscounts] = useState<{ [sessionId: string]: { type: 'percentage' | 'amount'; value: number } }>({});
 
   useEffect(() => {
     fetchClosedSessions();
@@ -128,6 +129,13 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
       });
       setEditableItems(initialEditableItems);
 
+      // Initialize session discounts
+      const initialDiscounts: { [key: string]: { type: 'percentage' | 'amount'; value: number } } = {};
+      sessionsWithOrders.forEach((session) => {
+        initialDiscounts[session.id] = { type: 'percentage', value: 0 };
+      });
+      setSessionDiscounts(initialDiscounts);
+
     } catch (error) {
       console.error('Error fetching closed sessions:', error);
       toast.error('Failed to load closed sessions');
@@ -168,7 +176,8 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
       const updatedItems = editableItems[sessionId].map(item =>
         item.id === itemId ? updatedItem : item
       );
-      const totals = calculateTotals(updatedItems);
+      const sessionDiscount = sessionDiscounts[sessionId];
+      const totals = calculateTotals(updatedItems, sessionDiscount);
 
       await supabase
         .from('table_sessions')
@@ -180,17 +189,29 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
     }
   };
 
-  const calculateTotals = (items: EditableItem[]) => {
+  const calculateTotals = (items: EditableItem[], sessionDiscount?: { type: 'percentage' | 'amount'; value: number }) => {
     const subtotal = items.reduce((sum, item) => {
       return sum + (item.editedQuantity * item.editedPrice);
     }, 0);
 
-    const discountTotal = items.reduce((sum, item) => {
+    const itemDiscountTotal = items.reduce((sum, item) => {
       const itemSubtotal = item.editedQuantity * item.editedPrice;
       return sum + (itemSubtotal * (item.editedDiscount / 100));
     }, 0);
 
-    const afterDiscount = subtotal - discountTotal;
+    const afterItemDiscount = subtotal - itemDiscountTotal;
+
+    // Calculate session-level discount
+    let sessionDiscountAmount = 0;
+    if (sessionDiscount && sessionDiscount.value > 0) {
+      if (sessionDiscount.type === 'percentage') {
+        sessionDiscountAmount = afterItemDiscount * (sessionDiscount.value / 100);
+      } else {
+        sessionDiscountAmount = sessionDiscount.value;
+      }
+    }
+
+    const afterAllDiscounts = afterItemDiscount - sessionDiscountAmount;
 
     const tax = items.reduce((sum, item) => {
       const itemSubtotal = item.editedQuantity * item.editedPrice;
@@ -199,9 +220,20 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
       return sum + (itemAfterDiscount * ((item.menu_item.tax_rate || 0) / 100));
     }, 0);
 
-    const total = afterDiscount + tax;
+    // Apply session discount to tax proportionally
+    const taxAfterDiscount = sessionDiscountAmount > 0 ? (tax * (afterAllDiscounts / afterItemDiscount)) : tax;
 
-    return { subtotal, discountTotal, afterDiscount, tax, total };
+    const total = afterAllDiscounts + taxAfterDiscount;
+
+    return {
+      subtotal,
+      itemDiscountTotal,
+      afterItemDiscount,
+      sessionDiscountAmount,
+      afterAllDiscounts,
+      tax: taxAfterDiscount,
+      total
+    };
   };
 
   const handleCashPayment = async (sessionId: string) => {
@@ -230,9 +262,30 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
     if (!session) return;
 
     const items = editableItems[sessionId];
-    const totals = calculateTotals(items);
+    const sessionDiscount = sessionDiscounts[sessionId];
+    const totals = calculateTotals(items, sessionDiscount);
 
     setShowInPersonPayment({ sessionId, amount: totals.total });
+  };
+
+  const updateSessionDiscount = async (sessionId: string, type: 'percentage' | 'amount', value: number) => {
+    setSessionDiscounts(prev => ({
+      ...prev,
+      [sessionId]: { type, value }
+    }));
+
+    const items = editableItems[sessionId];
+    const totals = calculateTotals(items, { type, value });
+
+    try {
+      await supabase
+        .from('table_sessions')
+        .update({ total_amount: totals.total })
+        .eq('id', sessionId);
+    } catch (error) {
+      console.error('Error updating session discount:', error);
+      toast.error('Failed to update discount');
+    }
   };
 
   const handleInPersonPaymentSuccess = async () => {
@@ -295,7 +348,8 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {closedSessions.map((session) => {
             const items = editableItems[session.id] || [];
-            const totals = calculateTotals(items);
+            const sessionDiscount = sessionDiscounts[session.id] || { type: 'percentage', value: 0 };
+            const totals = calculateTotals(items, sessionDiscount);
 
             return (
               <div key={session.id} className="bg-white rounded-lg shadow-sm border">
@@ -380,17 +434,62 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                   </div>
 
                   <div className="border-t pt-3 mb-3">
-                    <div className="space-y-1 text-sm">
+                    <div className="space-y-2 text-sm">
                       <div className="flex justify-between text-gray-700">
                         <span>Subtotal:</span>
                         <span>£{totals.subtotal.toFixed(2)}</span>
                       </div>
-                      {totals.discountTotal > 0 && (
+                      {totals.itemDiscountTotal > 0 && (
                         <div className="flex justify-between text-red-600">
-                          <span>Discount:</span>
-                          <span>-£{totals.discountTotal.toFixed(2)}</span>
+                          <span>Item Discounts:</span>
+                          <span>-£{totals.itemDiscountTotal.toFixed(2)}</span>
                         </div>
                       )}
+
+                      {/* Session-level discount input */}
+                      {session.payment_status !== 'paid' && (
+                        <div className="border-t border-b py-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-700">Additional Discount:</span>
+                            <div className="flex items-center space-x-2">
+                              <select
+                                value={sessionDiscount.type}
+                                onChange={(e) => updateSessionDiscount(session.id, e.target.value as 'percentage' | 'amount', sessionDiscount.value)}
+                                className="px-2 py-1 border rounded text-xs"
+                                disabled={session.payment_status === 'paid'}
+                              >
+                                <option value="percentage">%</option>
+                                <option value="amount">£</option>
+                              </select>
+                              <input
+                                type="number"
+                                min="0"
+                                step={sessionDiscount.type === 'percentage' ? '1' : '0.01'}
+                                max={sessionDiscount.type === 'percentage' ? '100' : undefined}
+                                value={sessionDiscount.value}
+                                onChange={(e) => updateSessionDiscount(session.id, sessionDiscount.type, parseFloat(e.target.value) || 0)}
+                                className="w-20 px-2 py-1 border rounded text-right text-xs"
+                                placeholder="0"
+                                disabled={session.payment_status === 'paid'}
+                              />
+                            </div>
+                          </div>
+                          {sessionDiscount.value > 0 && (
+                            <div className="flex justify-between text-red-600 text-xs">
+                              <span>Discount Applied:</span>
+                              <span>-£{totals.sessionDiscountAmount.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {session.payment_status === 'paid' && totals.sessionDiscountAmount > 0 && (
+                        <div className="flex justify-between text-red-600">
+                          <span>Additional Discount:</span>
+                          <span>-£{totals.sessionDiscountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between text-gray-700">
                         <span>Tax:</span>
                         <span>£{totals.tax.toFixed(2)}</span>
@@ -496,17 +595,24 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
 
             <div className="border-t-2 border-gray-800 pt-3 space-y-1">
               {(() => {
-                const totals = calculateTotals(editableItems[printReceipt.id] || []);
+                const sessionDiscount = sessionDiscounts[printReceipt.id] || { type: 'percentage', value: 0 };
+                const totals = calculateTotals(editableItems[printReceipt.id] || [], sessionDiscount);
                 return (
                   <>
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
                       <span>£{totals.subtotal.toFixed(2)}</span>
                     </div>
-                    {totals.discountTotal > 0 && (
+                    {totals.itemDiscountTotal > 0 && (
                       <div className="flex justify-between text-red-600">
-                        <span>Discount:</span>
-                        <span>-£{totals.discountTotal.toFixed(2)}</span>
+                        <span>Item Discounts:</span>
+                        <span>-£{totals.itemDiscountTotal.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {totals.sessionDiscountAmount > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>Additional Discount ({sessionDiscount.type === 'percentage' ? `${sessionDiscount.value}%` : `£${sessionDiscount.value.toFixed(2)}`}):</span>
+                        <span>-£{totals.sessionDiscountAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
