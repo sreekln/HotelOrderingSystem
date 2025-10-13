@@ -16,7 +16,8 @@ import {
   CheckCircle,
   Printer,
   Coffee,
-  Utensils
+  Utensils,
+  X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -63,6 +64,7 @@ export default function AdminDashboard() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu' | 'tables'>('overview');
+  const [selectedSession, setSelectedSession] = useState<TableSession | null>(null);
   const [reportFilter, setReportFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -610,7 +612,11 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {tableSessions.map((session) => (
-                  <tr key={`${session.table_number}-${session.created_at}`}>
+                  <tr
+                    key={`${session.table_number}-${session.created_at}`}
+                    onClick={() => setSelectedSession(session)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       Table {session.table_number}
                       <div className="text-xs text-gray-500">{session.customer_name}</div>
@@ -866,6 +872,138 @@ export default function AdminDashboard() {
 
       {activeTab === 'tables' && (
         <TablesManagement />
+      )}
+
+      {/* Session Details Popup */}
+      {selectedSession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b bg-amber-50 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Table {selectedSession.table_number} Details
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedSession.customer_name} • {format(new Date(selectedSession.created_at), 'MMM dd, yyyy HH:mm')}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedSession(null)}
+                className="p-2 hover:bg-amber-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+              {/* Status Badges */}
+              <div className="flex items-center space-x-3 mb-6">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedSession.status)}`}>
+                  Session: {selectedSession.status.replace('_', ' ')}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedSession.payment_status === 'paid'
+                    ? 'text-green-600 bg-green-50'
+                    : selectedSession.payment_status === 'pending'
+                    ? 'text-yellow-600 bg-yellow-50'
+                    : 'text-red-600 bg-red-50'
+                }`}>
+                  Payment: {selectedSession.payment_status || 'pending'}
+                </span>
+              </div>
+
+              {/* Part Orders */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-900 text-lg">
+                  Part Orders ({selectedSession.part_orders.length})
+                </h3>
+
+                {selectedSession.part_orders.map((partOrder, index) => (
+                  <div key={partOrder.id} className="border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <span className="font-medium text-gray-900">Part Order #{index + 1}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPartOrderStatusColor(partOrder.status)}`}>
+                          {getPartOrderStatusIcon(partOrder.status)}
+                          <span className="ml-1">{partOrder.status.replace('_', ' ')}</span>
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {format(new Date(partOrder.created_at), 'HH:mm:ss')}
+                      </span>
+                    </div>
+
+                    {/* Items Table */}
+                    <div className="bg-white rounded border">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-100 border-b">
+                          <tr>
+                            <th className="px-4 py-2 text-left font-medium text-gray-700">Item</th>
+                            <th className="px-4 py-2 text-center font-medium text-gray-700">Quantity</th>
+                            <th className="px-4 py-2 text-right font-medium text-gray-700">Unit Price</th>
+                            <th className="px-4 py-2 text-right font-medium text-gray-700">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {partOrder.items.map(({ item, quantity }) => (
+                            <tr key={item.id}>
+                              <td className="px-4 py-2">
+                                <div className="font-medium text-gray-900">{item.name}</div>
+                                <div className="text-xs text-gray-500">{item.category}</div>
+                              </td>
+                              <td className="px-4 py-2 text-center">{quantity}</td>
+                              <td className="px-4 py-2 text-right">£{item.price.toFixed(2)}</td>
+                              <td className="px-4 py-2 text-right font-medium">£{(item.price * quantity).toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 border-t">
+                          <tr>
+                            <td colSpan={3} className="px-4 py-2 text-right font-medium text-gray-700">
+                              Part Order Total:
+                            </td>
+                            <td className="px-4 py-2 text-right font-bold text-gray-900">
+                              £{partOrder.items.reduce((sum, { item, quantity }) => sum + (item.price * quantity), 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                    {partOrder.special_instructions && (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-xs font-medium text-yellow-800 mb-1">Special Instructions:</p>
+                        <p className="text-sm text-yellow-900">{partOrder.special_instructions}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Session Total */}
+              <div className="mt-6 pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-semibold text-gray-900">Session Total:</span>
+                  <span className="text-2xl font-bold text-amber-600">
+                    £{selectedSession.total_amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setSelectedSession(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
