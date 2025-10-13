@@ -61,7 +61,7 @@ export default function AdminDashboard() {
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu' | 'tables'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'menu'>('overview');
   const [reportFilter, setReportFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -455,8 +455,7 @@ export default function AdminDashboard() {
             {[
               { key: 'overview', label: 'Overview' },
               { key: 'sessions', label: 'Table Sessions' },
-              { key: 'menu', label: 'Menu Management' },
-              { key: 'tables', label: 'Tables' }
+              { key: 'menu', label: 'Menu Management' }
             ].map((tab) => (
               <button
                 key={tab.key}
