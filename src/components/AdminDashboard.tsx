@@ -271,6 +271,58 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleExportToExcel = () => {
+    try {
+      // Prepare CSV data
+      const csvRows = [];
+
+      // Add headers
+      const headers = ['Table Number', 'Customer Name', 'Total Amount', 'Status', 'Payment Status', 'Number of Orders', 'Created At'];
+      csvRows.push(headers.join(','));
+
+      // Add data rows
+      tableSessions.forEach(session => {
+        const row = [
+          session.table_number,
+          `"${session.customer_name}"`,
+          session.total_amount.toFixed(2),
+          session.status,
+          session.payment_status || 'pending',
+          session.part_orders.length,
+          format(new Date(session.created_at), 'yyyy-MM-dd HH:mm:ss')
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      // Create CSV content
+      const csvContent = csvRows.join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      // Generate filename with current date and filter
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      const filterLabel = reportFilter === 'today' ? 'Today' :
+                         reportFilter === 'week' ? 'ThisWeek' :
+                         reportFilter === 'month' ? 'ThisMonth' : 'AllTime';
+      const filename = `sales-report-${filterLabel}-${dateStr}.csv`;
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Report exported successfully');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export report');
+    }
+  };
+
   const getPartOrderStatusIcon = (status: PartOrder['status']) => {
     switch (status) {
       case 'draft':
@@ -384,7 +436,10 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          <button className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center">
+          <button
+            onClick={handleExportToExcel}
+            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center"
+          >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
