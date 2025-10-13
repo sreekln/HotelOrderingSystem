@@ -402,26 +402,34 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                                 )}
                               </td>
                               <td className="px-3 py-2 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.editedQuantity}
-                                  onChange={(e) => updateItemField(session.id, item.id, 'editedQuantity', parseInt(e.target.value) || 1)}
-                                  className="w-16 px-2 py-1 border rounded text-center text-sm"
-                                />
-                              </td>
-                              <td className="px-3 py-2 text-right">
-                                <div className="flex items-center justify-end">
-                                  <span className="mr-1">£</span>
+                                {session.payment_status === 'paid' ? (
+                                  <span className="font-medium text-gray-900">{item.editedQuantity}</span>
+                                ) : (
                                   <input
                                     type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={item.editedPrice}
-                                    onChange={(e) => updateItemField(session.id, item.id, 'editedPrice', parseFloat(e.target.value) || 0)}
-                                    className="w-20 px-2 py-1 border rounded text-right text-sm"
+                                    min="1"
+                                    value={item.editedQuantity}
+                                    onChange={(e) => updateItemField(session.id, item.id, 'editedQuantity', parseInt(e.target.value) || 1)}
+                                    className="w-16 px-2 py-1 border rounded text-center text-sm"
                                   />
-                                </div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                {session.payment_status === 'paid' ? (
+                                  <span className="font-medium text-gray-900">£{item.editedPrice.toFixed(2)}</span>
+                                ) : (
+                                  <div className="flex items-center justify-end">
+                                    <span className="mr-1">£</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={item.editedPrice}
+                                      onChange={(e) => updateItemField(session.id, item.id, 'editedPrice', parseFloat(e.target.value) || 0)}
+                                      className="w-20 px-2 py-1 border rounded text-right text-sm"
+                                    />
+                                  </div>
+                                )}
                               </td>
                               <td className="px-3 py-2 text-right font-semibold text-gray-900">
                                 £{itemTotal.toFixed(2)}
