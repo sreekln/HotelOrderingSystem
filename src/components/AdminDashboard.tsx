@@ -802,7 +802,7 @@ export default function AdminDashboard() {
                           price: '',
                           category: 'daytime',
                           company: '',
-                          tax_rate: '8.5',
+                          tax_rate: '20',
                           food_category: 'Cooked',
                           available: true
                         });
