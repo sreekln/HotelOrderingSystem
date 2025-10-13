@@ -945,37 +945,20 @@ const ServerDashboard: React.FC = () => {
                   <h3 className="text-lg font-bold text-gray-900 mb-3 border-b pb-2">Order Items</h3>
                   <div className="space-y-3">
                     {printPreview.items.map((item, index) => (
-                      <div key={index} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900 text-lg">
-                            {item.quantity}x {item.item.name}
-                          </div>
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="font-semibold text-gray-900 text-lg">
+                          {item.quantity}x {item.item.name}
+                        </div>
+                        {item.item.description && (
                           <div className="text-sm text-gray-600 mt-1">{item.item.description}</div>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
-                              {item.item.category}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded-full font-medium">
-                              {item.item.food_category}
-                            </span>
-                            <span className="text-xs text-gray-500">{item.item.company}</span>
-                          </div>
-                        </div>
-                        <div className="text-right ml-4">
-                          <div className="font-semibold text-gray-900">
-                            £{(item.item.price * item.quantity).toFixed(2)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            £{item.item.price.toFixed(2)} each
-                          </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Special Instructions */}
-                {printPreview.special_instructions && (
+                {specialInstructions && (
                   <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
                     <div className="flex items-start">
                       <div className="text-yellow-600 mr-3 mt-1">
@@ -985,52 +968,12 @@ const ServerDashboard: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-bold text-yellow-800 mb-1">Special Instructions:</div>
-                        <div className="text-yellow-800 font-medium">{printPreview.special_instructions}</div>
+                        <div className="text-yellow-800 font-medium">{specialInstructions}</div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Order Summary */}
-                <div className="border-t-2 pt-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-3">Part Order Summary</h3>
-                  <div className="space-y-2">
-                    {(() => {
-                      const subtotal = printPreview.items.reduce(
-                        (sum, item) => sum + (item.item.price * item.quantity),
-                        0
-                      );
-                      const tax = printPreview.items.reduce(
-                        (sum, item) => sum + (item.item.price * item.quantity * item.item.tax_rate / 100),
-                        0
-                      );
-                      const total = subtotal + tax;
-
-                      return (
-                        <>
-                          <div className="flex justify-between text-gray-700">
-                            <span>Subtotal:</span>
-                            <span className="font-semibold">£{subtotal.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-gray-700">
-                            <span>Tax:</span>
-                            <span className="font-semibold">£{tax.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-xl font-bold text-gray-900 border-t-2 pt-2 mt-2">
-                            <span>Total:</span>
-                            <span className="text-amber-600">£{total.toFixed(2)}</span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="text-center text-sm text-gray-500 border-t pt-4">
-                  <div>Part Order ID: {printPreview.id}</div>
-                  <div className="mt-1">Please prepare items according to kitchen workflow</div>
-                </div>
                 </div>
               </div>
 
