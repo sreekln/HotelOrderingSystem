@@ -743,6 +743,7 @@ export default function AdminDashboard() {
                     >
                       <option value="daytime">Daytime</option>
                       <option value="dinner">Dinner</option>
+                      <option value="dessert">Dessert</option>
                       <option value="coffeetea">Coffee & Tea</option>
                       <option value="drinks">Drinks</option>
                     </select>
