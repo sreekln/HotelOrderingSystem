@@ -45,7 +45,6 @@ const ServerDashboard: React.FC = () => {
   const [tableSessions, setTableSessions] = useState<TableSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState<number>(1);
-  const [customerName, setCustomerName] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'order' | 'tables'>('order');
@@ -173,11 +172,6 @@ const ServerDashboard: React.FC = () => {
       return;
     }
 
-    if (!customerName.trim()) {
-      toast.error('Please enter customer name');
-      return;
-    }
-
     const newPartOrder: PartOrder = {
       id: `part-${Date.now()}`,
       table_number: selectedTable,
@@ -211,7 +205,7 @@ const ServerDashboard: React.FC = () => {
         // Create new session
         const newSession: TableSession = {
           table_number: order.table_number,
-          customer_name: customerName,
+          customer_name: 'Guest',
           part_orders: [order],
           total_amount: calculateCartTotal(order.items).total,
           status: 'active',
@@ -233,7 +227,7 @@ const ServerDashboard: React.FC = () => {
       const { data: sessionData, error: sessionError } = await createTableSession(
         printPreview.table_number,
         user.id,
-        customerName
+        'Guest'
       );
 
       if (sessionError || !sessionData) {
@@ -303,7 +297,7 @@ const ServerDashboard: React.FC = () => {
       const { data: sessionData, error: sessionError } = await createTableSession(
         printPreview.table_number,
         user.id,
-        customerName
+        'Guest'
       );
 
       if (sessionError || !sessionData) {
@@ -659,32 +653,18 @@ const ServerDashboard: React.FC = () => {
               </div>
               
               <div className="p-4">
-                {/* Table and Customer Info */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Table Number
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={selectedTable}
-                      onChange={(e) => setSelectedTable(parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Customer Name
-                    </label>
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      placeholder="Enter customer name"
-                    />
-                  </div>
+                {/* Table Info */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Table Number
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={selectedTable}
+                    onChange={(e) => setSelectedTable(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
                 </div>
 
                 {cart.length === 0 ? (
@@ -755,7 +735,7 @@ const ServerDashboard: React.FC = () => {
 
                       <button
                         onClick={sendPartOrder}
-                        disabled={loading || !customerName.trim()}
+                        disabled={loading}
                         className="w-full bg-amber-600 text-white py-3 px-4 rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-medium"
                       >
                         <Printer className="h-4 w-4 mr-2" />

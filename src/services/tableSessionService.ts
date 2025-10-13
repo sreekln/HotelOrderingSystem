@@ -36,7 +36,7 @@ export interface TableSession {
 export async function createTableSession(
   tableNumber: number,
   serverId: string,
-  customerName: string
+  customerName?: string
 ): Promise<{ data: TableSession | null; error: any }> {
   try {
     // Check if there's already an active session for this table
@@ -57,7 +57,6 @@ export async function createTableSession(
       .insert({
         table_number: tableNumber,
         server_id: serverId,
-        customer_name: customerName,
         status: 'active',
         payment_status: 'pending',
         total_amount: 0
