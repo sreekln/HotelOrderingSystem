@@ -501,33 +501,35 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
                     </div>
                   </div>
 
-                  {session.payment_status !== 'paid' && (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => handlePrintReceipt(session)}
-                        className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center text-sm"
-                      >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Print Receipt
-                      </button>
-                      <button
-                        onClick={() => handleCashPayment(session.id)}
-                        disabled={paymentLoading === session.id}
-                        className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center text-sm font-medium"
-                      >
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        {paymentLoading === session.id ? 'Processing...' : 'Pay by Cash'}
-                      </button>
-                      <button
-                        onClick={() => handleStripePayment(session.id)}
-                        disabled={paymentLoading === session.id}
-                        className="w-full px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center justify-center text-sm font-medium"
-                      >
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        {paymentLoading === session.id ? 'Processing...' : 'Pay with Terminal'}
-                      </button>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => handlePrintReceipt(session)}
+                      className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center text-sm"
+                    >
+                      <Printer className="h-4 w-4 mr-2" />
+                      Print Receipt
+                    </button>
+                    {session.payment_status !== 'paid' && (
+                      <>
+                        <button
+                          onClick={() => handleCashPayment(session.id)}
+                          disabled={paymentLoading === session.id}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center text-sm font-medium"
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          {paymentLoading === session.id ? 'Processing...' : 'Pay by Cash'}
+                        </button>
+                        <button
+                          onClick={() => handleStripePayment(session.id)}
+                          disabled={paymentLoading === session.id}
+                          className="w-full px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center justify-center text-sm font-medium"
+                        >
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          {paymentLoading === session.id ? 'Processing...' : 'Pay with Terminal'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );
