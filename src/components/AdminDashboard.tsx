@@ -3,7 +3,7 @@ import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
 import { supabase } from '../lib/supabase';
 import { getTableSessions } from '../services/tableSessionService';
 import {
-  DollarSign,
+  PoundSterling,
   TrendingUp,
   Users,
   ShoppingBag,
@@ -485,7 +485,7 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-md">
-                  <DollarSign className="h-6 w-6 text-green-600" />
+                  <PoundSterling className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Revenue</p>
