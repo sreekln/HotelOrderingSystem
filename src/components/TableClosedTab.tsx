@@ -549,9 +549,12 @@ const TableClosedTab: React.FC<TableClosedTabProps> = ({ userId }) => {
       {printReceipt && createPortal(
         <div className="print-only-content">
           <div className="space-y-4">
-            <div className="text-center border-b-2 border-gray-800 pb-2">
-              <h1 className="text-2xl font-bold text-gray-900">Receipt</h1>
-              <p className="text-sm text-gray-600">{new Date().toLocaleString()}</p>
+            <div className="text-center border-b-2 border-gray-800 pb-3">
+              <h1 className="text-2xl font-bold text-gray-900">Lush and Hush</h1>
+              <p className="text-sm text-gray-700 mt-1">101 Notting Hill Gate</p>
+              <p className="text-sm text-gray-700">London, UK</p>
+              <p className="text-sm text-gray-700 mb-2">07786 189088</p>
+              <p className="text-xs text-gray-600 border-t border-gray-400 pt-2 mt-2">{new Date().toLocaleString()}</p>
             </div>
 
             <div className="space-y-1">
