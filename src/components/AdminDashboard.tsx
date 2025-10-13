@@ -72,7 +72,7 @@ export default function AdminDashboard() {
     name: '',
     description: '',
     price: '',
-    category: 'appetizer',
+    category: 'daytime',
     company: '',
     tax_rate: '8.5',
     food_category: 'Cooked',
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
         name: '',
         description: '',
         price: '',
-        category: 'appetizer',
+        category: 'daytime',
         company: '',
         tax_rate: '8.5',
         food_category: 'Cooked',
@@ -741,10 +741,6 @@ export default function AdminDashboard() {
                       onChange={(e) => setMenuForm(prev => ({ ...prev, category: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
                     >
-                      <option value="appetizer">Appetizer</option>
-                      <option value="main">Main Course</option>
-                      <option value="dessert">Dessert</option>
-                      <option value="beverage">Beverage</option>
                       <option value="daytime">Daytime</option>
                       <option value="dinner">Dinner</option>
                       <option value="coffeetea">Coffee & Tea</option>
@@ -804,7 +800,7 @@ export default function AdminDashboard() {
                           name: '',
                           description: '',
                           price: '',
-                          category: 'appetizer',
+                          category: 'daytime',
                           company: '',
                           tax_rate: '8.5',
                           food_category: 'Cooked',
