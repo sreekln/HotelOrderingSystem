@@ -12,7 +12,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
-  category: 'appetizer' | 'main' | 'dessert' | 'beverage';
+  category: 'daytime' | 'dinner' | 'dessert' | 'coffeetea' | 'drinks';
   company: string;
   tax_rate: number;
   food_category: 'Raw' | 'Cooked';

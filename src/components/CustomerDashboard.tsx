@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MenuItem, calculateCartTotal } from '../lib/mockData';
+import { MenuItem } from '../lib/supabase';
+import { calculateCartTotal } from '../lib/mockData';
 import { useAuth } from '../lib/auth';
 import { ShoppingCart, Plus, Minus, Clock, CheckCircle, Save, X, Search, User, Shield, Printer, Coffee, Utensils, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';

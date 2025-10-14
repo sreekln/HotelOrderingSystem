@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem, mockMenuItems, mockCompanies } from '../lib/mockData';
+import { MenuItem } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { getTableSessions } from '../services/tableSessionService';
 import {
@@ -171,15 +171,18 @@ export default function AdminDashboard() {
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       setTableSessions(sortedSessions);
-      
-      // Set menu items
-      const sortedMenuItems = [...mockMenuItems].sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      setMenuItems(sortedMenuItems);
+
+      // Fetch menu items from database
+      const { data: menuData, error: menuError } = await supabase
+        .from('menu_items')
+        .select('*')
+        .is('deleted_at', null)
+        .order('category', { ascending: true })
+        .order('name', { ascending: true });
+
+      if (menuError) throw menuError;
+
+      setMenuItems(menuData || []);
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -191,29 +194,35 @@ export default function AdminDashboard() {
 
   const handleMenuSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       const menuData = {
-        id: editingItem?.id || `menu-${Date.now()}`,
-        ...menuForm,
+        name: menuForm.name,
+        description: menuForm.description,
         price: parseFloat(menuForm.price),
+        category: menuForm.category,
+        company: menuForm.company,
         tax_rate: parseFloat(menuForm.tax_rate),
-        created_at: editingItem?.created_at || new Date().toISOString()
+        food_category: menuForm.food_category,
+        available: menuForm.available
       };
 
       if (editingItem) {
         // Update existing item
-        const itemIndex = mockMenuItems.findIndex(item => item.id === editingItem.id);
-        if (itemIndex !== -1) {
-          mockMenuItems[itemIndex] = menuData as MenuItem;
-        }
+        const { error } = await supabase
+          .from('menu_items')
+          .update(menuData)
+          .eq('id', editingItem.id);
+
+        if (error) throw error;
         toast.success('Menu item updated successfully');
       } else {
         // Add new item
-        mockMenuItems.push(menuData as MenuItem);
+        const { error } = await supabase
+          .from('menu_items')
+          .insert([menuData]);
+
+        if (error) throw error;
         toast.success('Menu item added successfully');
       }
 
@@ -257,14 +266,13 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Soft delete by setting deleted_at timestamp
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', itemId);
 
-      // Remove item from mock data
-      const itemIndex = mockMenuItems.findIndex(item => item.id === itemId);
-      if (itemIndex !== -1) {
-        mockMenuItems.splice(itemIndex, 1);
-      }
+      if (error) throw error;
 
       toast.success('Menu item deleted successfully');
       fetchDashboardData();
@@ -827,11 +835,6 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600 capitalize">{item.category} • {item.food_category}</p>
                         <div className="text-xs text-gray-500">
                           <span className="font-medium">{item.company}</span>
-                          {mockCompanies.find(c => c.name === item.company) && (
-                            <span className="ml-1">
-                              • {mockCompanies.find(c => c.name === item.company)?.category}
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="flex space-x-1">

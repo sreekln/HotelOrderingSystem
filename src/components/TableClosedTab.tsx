@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MenuItem } from '../lib/mockData';
+import { MenuItem } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { DollarSign, CreditCard, Printer, Edit2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';

@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { AuthProvider, useAuth } from './lib/auth';
-import { mockOrders } from './lib/mockData';
 import Layout from './components/Layout';
 import Auth from './components/Auth';
 import ServerDashboard from './components/CustomerDashboard';
@@ -20,19 +19,9 @@ const AppContent: React.FC = () => {
     // Check for payment status in URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
-    const orderId = urlParams.get('order');
 
-    if (paymentStatus === 'success' && orderId) {
-      // Update the order payment status in mock data
-      const orderIndex = mockOrders.findIndex(order => order.id === orderId);
-      if (orderIndex !== -1) {
-        mockOrders[orderIndex] = {
-          ...mockOrders[orderIndex],
-          payment_status: 'paid',
-          updated_at: new Date().toISOString()
-        };
-      }
-      toast.success('Payment successful! Your order has been paid.');
+    if (paymentStatus === 'success') {
+      toast.success('Payment successful!');
       // Clean up URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (paymentStatus === 'cancelled') {

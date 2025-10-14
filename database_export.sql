@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
     name TEXT NOT NULL,
     description TEXT,
     price NUMERIC NOT NULL CHECK (price >= 0),
-    category TEXT NOT NULL CHECK (category IN ('appetizer', 'main', 'dessert', 'beverage')),
+    category TEXT NOT NULL CHECK (category IN ('daytime', 'dinner', 'dessert', 'coffeetea', 'drinks')),
     company TEXT NOT NULL,
     food_category TEXT CHECK (food_category IN ('Raw', 'Cooked')),
     tax_rate NUMERIC DEFAULT 20,
