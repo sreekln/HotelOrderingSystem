@@ -43,8 +43,10 @@ export const useNotifications = (userId?: string, userRole?: string) => {
     const channelName = `part_order_items_${Math.random().toString(36).substring(7)}`;
     console.log('[Notifications] Using channel:', channelName);
 
-    const itemsSubscription = supabase
-      .channel(channelName)
+    const channel = supabase.channel(channelName);
+    console.log('[Notifications] 📺 Channel created:', channel);
+
+    const itemsSubscription = channel
       .on(
         'postgres_changes',
         {
@@ -160,8 +162,20 @@ export const useNotifications = (userId?: string, userRole?: string) => {
         }
       });
 
+    console.log('[Notifications] 🎯 Subscription object:', itemsSubscription);
+    console.log('[Notifications] 🎯 Channel state:', itemsSubscription.state);
+
+    // Log channel state changes
+    setTimeout(() => {
+      console.log('[Notifications] 🕐 After 1s - Channel state:', itemsSubscription.state);
+    }, 1000);
+
+    setTimeout(() => {
+      console.log('[Notifications] 🕑 After 3s - Channel state:', itemsSubscription.state);
+    }, 3000);
+
     return () => {
-      console.log('[Notifications] 🧹 Cleaning up subscription');
+      console.log('[Notifications] 🧹 Cleaning up subscription, final state:', itemsSubscription.state);
       itemsSubscription.unsubscribe();
     };
   }, [userId, userRole]);
