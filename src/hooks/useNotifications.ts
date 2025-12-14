@@ -94,14 +94,8 @@ export const useNotifications = (userId?: string, userRole?: string) => {
             console.log('[Notifications] Part order found:', {
               tableNumber: partOrder.table_number,
               serverId: partOrder.server_id,
-              currentUserId: userId,
-              matches: partOrder.server_id === userId
+              currentUserId: userId
             });
-
-            if (partOrder.server_id !== userId) {
-              console.log('[Notifications] Part order belongs to different server, skipping');
-              return;
-            }
 
             console.log('[Notifications] Fetching menu item:', menuItemId);
             const { data: menuItem, error: menuItemError } = await supabase
