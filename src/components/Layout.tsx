@@ -12,6 +12,14 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, signOut } = useAuth();
   const { subscription, hasActiveSubscription } = useSubscription();
+
+  console.log('[Layout] Rendering with user:', {
+    hasUser: !!user,
+    userId: user?.id,
+    userRole: user?.role,
+    fullUser: user
+  });
+
   const { notifications, unreadCount, clearNotifications, markAsRead } = useNotifications(user?.id, user?.role);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
