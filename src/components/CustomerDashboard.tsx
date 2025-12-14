@@ -13,7 +13,8 @@ import {
   createPartOrder,
   getTableSessions,
   updatePartOrderStatus,
-  closeTableSession
+  closeTableSession,
+  updatePartOrderItemStatus
 } from '../services/tableSessionService';
 
 interface PartOrder {
@@ -417,10 +418,7 @@ const ServerDashboard: React.FC = () => {
 
   const handleUpdateItemStatus = async (itemId: string, newStatus: 'pending' | 'preparing' | 'ready' | 'served') => {
     try {
-      const { error } = await supabase
-        .from('part_order_items')
-        .update({ status: newStatus })
-        .eq('id', itemId);
+      const { error } = await updatePartOrderItemStatus(itemId, newStatus);
 
       if (error) throw error;
 
@@ -938,12 +936,14 @@ const ServerDashboard: React.FC = () => {
 
                     {/* Close Table Session */}
                     {session.status === 'active' && (() => {
-                      const allOrdersServed = session.part_orders.every(po => po.status === 'served');
+                      const allItemsServed = session.part_orders.every(po =>
+                        po.items.every((item: any) => item.status === 'served')
+                      );
                       return (
                         <div>
                           <button
                             onClick={() => handleCloseTableSession(session)}
-                            disabled={!allOrdersServed || paymentLoading === session.table_number.toString()}
+                            disabled={!allItemsServed || paymentLoading === session.table_number.toString()}
                             className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center text-sm font-medium"
                           >
                             {paymentLoading === session.table_number.toString() ? (
@@ -953,9 +953,9 @@ const ServerDashboard: React.FC = () => {
                             )}
                             {paymentLoading === session.table_number.toString() ? 'Closing...' : 'Close'}
                           </button>
-                          {!allOrdersServed && (
+                          {!allItemsServed && (
                             <p className="text-xs text-red-600 mt-2 text-center">
-                              All part orders must be marked as "Served" before closing
+                              All items must be marked as "Served" before closing
                             </p>
                           )}
                         </div>
