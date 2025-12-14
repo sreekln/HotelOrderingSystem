@@ -178,6 +178,23 @@ export async function updatePartOrderStatus(
   }
 }
 
+export async function updatePartOrderItemStatus(
+  itemId: string,
+  status: 'pending' | 'preparing' | 'ready' | 'served'
+): Promise<{ error: any }> {
+  try {
+    const { error } = await supabase
+      .from('part_order_items')
+      .update({ status })
+      .eq('id', itemId);
+
+    return { error };
+  } catch (error) {
+    console.error('Error updating part order item status:', error);
+    return { error };
+  }
+}
+
 export async function closeTableSession(
   sessionId: string
 ): Promise<{ error: any }> {
