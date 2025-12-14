@@ -415,6 +415,23 @@ const ServerDashboard: React.FC = () => {
     }
   };
 
+  const handleUpdateItemStatus = async (itemId: string, newStatus: 'pending' | 'preparing' | 'ready' | 'served') => {
+    try {
+      const { error } = await supabase
+        .from('part_order_items')
+        .update({ status: newStatus })
+        .eq('id', itemId);
+
+      if (error) throw error;
+
+      toast.success(`Item status updated to ${newStatus}`);
+      fetchTableSessions();
+    } catch (error) {
+      console.error('Error updating item status:', error);
+      toast.error('Failed to update item status');
+    }
+  };
+
   const handleCloseTableSession = async (session: TableSession) => {
     if (!user || !session.id) return;
 
@@ -850,11 +867,55 @@ const ServerDashboard: React.FC = () => {
                             </div>
                           </div>
                           
-                          <div className="text-xs text-gray-600 space-y-1 mb-2">
+                          <div className="text-xs space-y-2 mb-2">
                             {partOrder.items.map((item, itemIndex) => (
-                              <div key={itemIndex} className="flex justify-between">
-                                <span>{item.item.name} ×{item.quantity}</span>
-                                <span>£{(item.item.price * item.quantity).toFixed(2)}</span>
+                              <div key={itemIndex} className="border rounded p-2 bg-gray-50">
+                                <div className="flex justify-between items-start mb-1">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-900">{item.item.name} ×{item.quantity}</span>
+                                      {item.status && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                          item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                          item.status === 'preparing' ? 'bg-orange-100 text-orange-700' :
+                                          item.status === 'ready' ? 'bg-green-100 text-green-700' :
+                                          'bg-blue-100 text-blue-700'
+                                        }`}>
+                                          {item.status}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="text-gray-600">£{(item.item.price * item.quantity).toFixed(2)}</span>
+                                </div>
+                                {item.id && item.status && item.status !== 'served' && (
+                                  <div className="flex gap-1 mt-2">
+                                    {item.status === 'pending' && (
+                                      <button
+                                        onClick={() => handleUpdateItemStatus(item.id!, 'preparing')}
+                                        className="flex-1 bg-orange-600 text-white py-1 px-2 rounded text-[10px] hover:bg-orange-700 transition-colors"
+                                      >
+                                        Start Preparing
+                                      </button>
+                                    )}
+                                    {item.status === 'preparing' && (
+                                      <button
+                                        onClick={() => handleUpdateItemStatus(item.id!, 'ready')}
+                                        className="flex-1 bg-green-600 text-white py-1 px-2 rounded text-[10px] hover:bg-green-700 transition-colors"
+                                      >
+                                        Mark Ready
+                                      </button>
+                                    )}
+                                    {item.status === 'ready' && (
+                                      <button
+                                        onClick={() => handleUpdateItemStatus(item.id!, 'served')}
+                                        className="flex-1 bg-blue-600 text-white py-1 px-2 rounded text-[10px] hover:bg-blue-700 transition-colors"
+                                      >
+                                        Mark Served
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -871,32 +932,6 @@ const ServerDashboard: React.FC = () => {
                               <span>Printed: {new Date(partOrder.printed_at).toLocaleTimeString()}</span>
                             )}
                           </div>
-
-                          {/* Part Order Status Controls */}
-                          {partOrder.status === 'sent_to_kitchen' && (
-                            <button
-                              onClick={() => handleUpdatePartOrderStatus(sessionIndex, partOrder.id, 'preparing')}
-                              className="w-full mt-2 bg-amber-600 text-white py-1 px-2 rounded text-xs hover:bg-amber-700 transition-colors"
-                            >
-                              Mark Preparing
-                            </button>
-                          )}
-                          {partOrder.status === 'preparing' && (
-                            <button
-                              onClick={() => handleUpdatePartOrderStatus(sessionIndex, partOrder.id, 'ready')}
-                              className="w-full mt-2 bg-green-600 text-white py-1 px-2 rounded text-xs hover:bg-green-700 transition-colors"
-                            >
-                              Mark Ready
-                            </button>
-                          )}
-                          {partOrder.status === 'ready' && (
-                            <button
-                              onClick={() => handleUpdatePartOrderStatus(sessionIndex, partOrder.id, 'served')}
-                              className="w-full mt-2 bg-purple-600 text-white py-1 px-2 rounded text-xs hover:bg-purple-700 transition-colors"
-                            >
-                              Mark Served
-                            </button>
-                          )}
                         </div>
                       ))}
                     </div>
