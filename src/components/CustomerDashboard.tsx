@@ -21,7 +21,13 @@ interface PartOrder {
   id: string;
   table_session_id?: string;
   table_number: string;
-  items: { item: MenuItem; quantity: number }[];
+  items: {
+    id?: string;
+    item: MenuItem;
+    quantity: number;
+    status?: 'pending' | 'preparing' | 'ready' | 'served';
+    special_instructions?: string;
+  }[];
   special_instructions?: string;
   status: 'draft' | 'sent_to_kitchen' | 'preparing' | 'ready' | 'served';
   created_at: string;
@@ -153,8 +159,11 @@ const ServerDashboard: React.FC = () => {
           created_at: po.created_at,
           printed_at: po.printed_at,
           items: (po.part_order_items || []).map((item: any) => ({
+            id: item.id,
             item: item.menu_items,
-            quantity: item.quantity
+            quantity: item.quantity,
+            status: item.status,
+            special_instructions: item.special_instructions
           }))
         }))
       }));
