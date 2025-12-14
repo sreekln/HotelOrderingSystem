@@ -24,13 +24,21 @@ export const useNotifications = (userId?: string, userRole?: string) => {
   const playNotificationSound = () => {
     const now = Date.now();
     if (now - lastNotificationTime.current > 1000) {
-      audioRef.current?.play().catch(err => console.log('Audio play failed:', err));
+      console.log('Playing notification sound');
+      audioRef.current?.play().catch(err => console.error('Audio play failed:', err));
       lastNotificationTime.current = now;
+    } else {
+      console.log('Notification sound throttled (too soon since last sound)');
     }
   };
 
   useEffect(() => {
-    if (!userId || userRole !== 'server') return;
+    if (!userId || userRole !== 'server') {
+      console.log('Notifications not enabled - userId:', userId, 'userRole:', userRole);
+      return;
+    }
+
+    console.log('Setting up notification subscriptions for user:', userId);
 
     const partOrdersSubscription = supabase
       .channel('part_orders_changes')
@@ -43,7 +51,16 @@ export const useNotifications = (userId?: string, userRole?: string) => {
           filter: `server_id=eq.${userId}`
         },
         (payload) => {
+          console.log('Part order updated:', payload);
+
           const newStatus = payload.new.status;
+          const oldStatus = payload.old?.status;
+
+          if (newStatus === oldStatus) {
+            console.log('Part order status unchanged, skipping notification');
+            return;
+          }
+
           const tableNumber = payload.new.table_number;
 
           const statusMessages: Record<string, string> = {
@@ -53,6 +70,8 @@ export const useNotifications = (userId?: string, userRole?: string) => {
           };
 
           const message = statusMessages[newStatus];
+          console.log('Part order status message:', message, 'for status:', newStatus);
+
           if (message) {
             const notification: Notification = {
               id: `${payload.new.id}-${Date.now()}`,
@@ -62,6 +81,7 @@ export const useNotifications = (userId?: string, userRole?: string) => {
               tableNumber
             };
 
+            console.log('Creating part order notification:', notification);
             setNotifications(prev => [notification, ...prev]);
             setUnreadCount(prev => prev + 1);
             playNotificationSound();
@@ -80,42 +100,79 @@ export const useNotifications = (userId?: string, userRole?: string) => {
           table: 'part_order_items'
         },
         async (payload) => {
-          const newStatus = payload.new.status;
-          const partOrderId = payload.new.part_order_id;
+          try {
+            console.log('Part order item updated:', payload);
 
-          const { data: partOrder } = await supabase
-            .from('part_orders')
-            .select('table_number, server_id')
-            .eq('id', partOrderId)
-            .maybeSingle();
+            const newStatus = payload.new.status;
+            const oldStatus = payload.old?.status;
 
-          if (partOrder && partOrder.server_id === userId) {
-            const { data: menuItem } = await supabase
-              .from('menu_items')
-              .select('name')
-              .eq('id', payload.new.menu_item_id)
+            if (newStatus === oldStatus) {
+              console.log('Status unchanged, skipping notification');
+              return;
+            }
+
+            const partOrderId = payload.new.part_order_id;
+            const menuItemId = payload.new.menu_item_id;
+
+            console.log('Fetching part order:', partOrderId);
+            const { data: partOrder, error: partOrderError } = await supabase
+              .from('part_orders')
+              .select('table_number, server_id')
+              .eq('id', partOrderId)
               .maybeSingle();
 
-            const statusMessages: Record<string, string> = {
-              preparing: 'is being prepared',
-              ready: 'is ready',
-              served: 'has been served'
-            };
+            if (partOrderError) {
+              console.error('Error fetching part order:', partOrderError);
+              return;
+            }
 
-            const message = statusMessages[newStatus];
-            if (message && menuItem) {
-              const notification: Notification = {
-                id: `${payload.new.id}-${Date.now()}`,
-                type: 'item_status',
-                message: `Table ${partOrder.table_number}: ${menuItem.name} ${message}`,
-                timestamp: new Date(),
-                tableNumber: partOrder.table_number
+            console.log('Part order data:', partOrder);
+
+            if (partOrder && partOrder.server_id === userId) {
+              console.log('Fetching menu item:', menuItemId);
+              const { data: menuItem, error: menuItemError } = await supabase
+                .from('menu_items')
+                .select('name')
+                .eq('id', menuItemId)
+                .maybeSingle();
+
+              if (menuItemError) {
+                console.error('Error fetching menu item:', menuItemError);
+                return;
+              }
+
+              console.log('Menu item data:', menuItem);
+
+              const statusMessages: Record<string, string> = {
+                preparing: 'is being prepared',
+                ready: 'is ready',
+                served: 'has been served'
               };
 
-              setNotifications(prev => [notification, ...prev]);
-              setUnreadCount(prev => prev + 1);
-              playNotificationSound();
+              const message = statusMessages[newStatus];
+              console.log('Status message:', message, 'for status:', newStatus);
+
+              if (message && menuItem) {
+                const notification: Notification = {
+                  id: `${payload.new.id}-${Date.now()}`,
+                  type: 'item_status',
+                  message: `Table ${partOrder.table_number}: ${menuItem.name} ${message}`,
+                  timestamp: new Date(),
+                  tableNumber: partOrder.table_number
+                };
+
+                console.log('Creating notification:', notification);
+                setNotifications(prev => [notification, ...prev]);
+                setUnreadCount(prev => prev + 1);
+                playNotificationSound();
+              } else {
+                console.log('No notification created - message:', message, 'menuItem:', menuItem);
+              }
+            } else {
+              console.log('Part order not for this user or not found');
             }
+          } catch (error) {
+            console.error('Error in part_order_items subscription:', error);
           }
         }
       )
