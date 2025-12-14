@@ -117,6 +117,40 @@ const KitchenDashboard: React.FC = () => {
     }
   };
 
+  const getTableOrders = () => {
+    const tableOrders: Array<{
+      tableNumber: string;
+      sessionId: string;
+      items: Array<PartOrderItem & { partOrderId: string; createdAt: string }>;
+      earliestTime: Date;
+    }> = [];
+
+    sessions.forEach(session => {
+      const allItemsForTable: Array<PartOrderItem & { partOrderId: string; createdAt: string }> = [];
+
+      session.part_orders.forEach(partOrder => {
+        partOrder.part_order_items.forEach(item => {
+          allItemsForTable.push({
+            ...item,
+            partOrderId: partOrder.id,
+            createdAt: partOrder.created_at
+          });
+        });
+      });
+
+      if (allItemsForTable.length > 0) {
+        tableOrders.push({
+          tableNumber: session.table_number,
+          sessionId: session.id,
+          items: allItemsForTable.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+          earliestTime: new Date(Math.min(...allItemsForTable.map(i => new Date(i.createdAt).getTime())))
+        });
+      }
+    });
+
+    return tableOrders.sort((a, b) => a.earliestTime.getTime() - b.earliestTime.getTime());
+  };
+
   const getAllItems = () => {
     const allItems: Array<PartOrderItem & { tableNumber: string; partOrderId: string; createdAt: string }> = [];
 
@@ -133,10 +167,20 @@ const KitchenDashboard: React.FC = () => {
       });
     });
 
-    return allItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return allItems;
   };
 
-  const filteredItems = getAllItems().filter(item => item.status === activeTab);
+  const getFilteredTableOrders = () => {
+    const tableOrders = getTableOrders();
+
+    if (activeTab === 'pending' || activeTab === 'preparing' || activeTab === 'ready' || activeTab === 'served') {
+      return tableOrders.filter(table =>
+        table.items.some(item => item.status === activeTab)
+      );
+    }
+
+    return tableOrders;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -172,6 +216,7 @@ const KitchenDashboard: React.FC = () => {
   }
 
   const itemCounts = getItemCounts();
+  const filteredTableOrders = getFilteredTableOrders();
 
   return (
     <div className="space-y-6">
@@ -215,73 +260,93 @@ const KitchenDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filteredItems.length === 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {filteredTableOrders.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <ChefHat className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No {activeTab} items</p>
+            <p className="text-gray-500">No tables with {activeTab} items</p>
           </div>
         ) : (
-          filteredItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow p-4">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-md">
-                    Table {item.tableNumber}
-                  </span>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(item.status)}`}>
-                    {item.status}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {format(new Date(item.createdAt), 'HH:mm')}
-                </span>
-              </div>
+          filteredTableOrders.map((tableOrder) => {
+            const filteredItems = activeTab ? tableOrder.items.filter(item => item.status === activeTab) : tableOrder.items;
 
-              <div className="mb-3">
-                <h3 className="font-semibold text-lg text-gray-900">{item.menu_items.name}</h3>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-sm text-gray-600">{item.menu_items.category}</span>
-                  <span className="text-sm font-medium text-gray-900">Qty: {item.quantity}</span>
+            return (
+              <div key={tableOrder.sessionId} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                <div className="p-4 border-b bg-gray-50">
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-orange-600">
+                      Table {tableOrder.tableNumber}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {format(tableOrder.earliestTime, 'HH:mm')}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {tableOrder.items.length} item{tableOrder.items.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  {filteredItems.map((item) => (
+                    <div key={item.id} className="border rounded-lg p-3 bg-gray-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{item.menu_items.name}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-600">{item.menu_items.category}</span>
+                            <span className="text-xs font-medium text-gray-900">Qty: {item.quantity}</span>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${getStatusColor(item.status)}`}>
+                          {item.status}
+                        </span>
+                      </div>
+
+                      {item.special_instructions && (
+                        <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                          <p className="text-xs text-yellow-800">
+                            <strong>Note:</strong> {item.special_instructions}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-2">
+                        {item.status === 'pending' && (
+                          <button
+                            onClick={() => handleUpdateItemStatus(item.id, 'preparing')}
+                            className="w-full bg-orange-600 text-white py-1.5 px-3 rounded text-sm font-medium hover:bg-orange-700 transition-colors"
+                          >
+                            Start Preparing
+                          </button>
+                        )}
+                        {item.status === 'preparing' && (
+                          <button
+                            onClick={() => handleUpdateItemStatus(item.id, 'ready')}
+                            className="w-full bg-green-600 text-white py-1.5 px-3 rounded text-sm font-medium hover:bg-green-700 transition-colors"
+                          >
+                            Mark Ready
+                          </button>
+                        )}
+                        {item.status === 'ready' && (
+                          <button
+                            onClick={() => handleUpdateItemStatus(item.id, 'served')}
+                            className="w-full bg-blue-600 text-white py-1.5 px-3 rounded text-sm font-medium hover:bg-blue-700 transition-colors"
+                          >
+                            Mark Served
+                          </button>
+                        )}
+                        {item.status === 'served' && (
+                          <div className="w-full bg-gray-200 text-gray-600 py-1.5 px-3 rounded text-sm font-medium text-center">
+                            Served
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {item.special_instructions && (
-                <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                  <p className="text-xs text-yellow-800">
-                    <strong>Note:</strong> {item.special_instructions}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                {item.status === 'pending' && (
-                  <button
-                    onClick={() => handleUpdateItemStatus(item.id, 'preparing')}
-                    className="flex-1 bg-orange-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-orange-700 transition-colors"
-                  >
-                    Start Preparing
-                  </button>
-                )}
-                {item.status === 'preparing' && (
-                  <button
-                    onClick={() => handleUpdateItemStatus(item.id, 'ready')}
-                    className="flex-1 bg-green-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-green-700 transition-colors"
-                  >
-                    Mark Ready
-                  </button>
-                )}
-                {item.status === 'ready' && (
-                  <button
-                    onClick={() => handleUpdateItemStatus(item.id, 'served')}
-                    className="flex-1 bg-blue-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-blue-700 transition-colors"
-                  >
-                    Mark Served
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
