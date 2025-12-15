@@ -43,11 +43,29 @@ export const useNotifications = (userId?: string, userRole?: string) => {
     console.log('[Notifications] ⚡ Setting up subscriptions for user:', userId, 'role:', userRole);
     console.log('[Notifications] 🌐 Supabase client:', supabase);
 
+    // Check auth status
+    supabase.auth.getSession().then(({ data, error }) => {
+      console.log('[Notifications] 🔐 Auth session:', {
+        hasSession: !!data.session,
+        userId: data.session?.user?.id,
+        error
+      });
+    });
+
+    // Log the realtime client state
+    const realtimeClient = (supabase as any).realtime;
+    console.log('[Notifications] 🔌 Realtime client:', realtimeClient);
+    console.log('[Notifications] 🔌 Realtime endpoint:', realtimeClient?.endPoint);
+    console.log('[Notifications] 🔌 Realtime connection:', realtimeClient?.conn);
+    console.log('[Notifications] 🔌 Realtime connection state:', realtimeClient?.conn?.readyState);
+    console.log('[Notifications] 🔌 WebSocket CONNECTING=0, OPEN=1, CLOSING=2, CLOSED=3');
+
     const channelName = `part_order_items_${Math.random().toString(36).substring(7)}`;
     console.log('[Notifications] Using channel:', channelName);
 
     const channel = supabase.channel(channelName);
     console.log('[Notifications] 📺 Channel created:', channel);
+    console.log('[Notifications] 📺 Channel socket:', (channel as any).socket);
 
     // Test callback registration
     console.log('[Notifications] 🎤 Registering callback for postgres_changes...');
@@ -188,18 +206,34 @@ export const useNotifications = (userId?: string, userRole?: string) => {
 
     // Log channel state changes
     setTimeout(() => {
+      const socketObj = (itemsSubscription as any).socket;
       console.log('[Notifications] 🕐 After 1s - Channel state:', itemsSubscription.state);
-      console.log('[Notifications] 🕐 After 1s - Socket state:', (itemsSubscription as any).socket?.connectionState);
+      console.log('[Notifications] 🕐 After 1s - Socket connectionState:', socketObj?.connectionState);
+      console.log('[Notifications] 🕐 After 1s - Socket readyState:', socketObj?.conn?.readyState);
+      console.log('[Notifications] 🕐 After 1s - Socket isConnected:', socketObj?.isConnected?.());
     }, 1000);
 
     setTimeout(() => {
+      const socketObj = (itemsSubscription as any).socket;
       console.log('[Notifications] 🕑 After 3s - Channel state:', itemsSubscription.state);
-      console.log('[Notifications] 🕑 After 3s - Socket state:', (itemsSubscription as any).socket?.connectionState);
+      console.log('[Notifications] 🕑 After 3s - Socket connectionState:', socketObj?.connectionState);
+      console.log('[Notifications] 🕑 After 3s - Socket readyState:', socketObj?.conn?.readyState);
+      console.log('[Notifications] 🕑 After 3s - Socket isConnected:', socketObj?.isConnected?.());
     }, 3000);
 
     setTimeout(() => {
+      const socketObj = (itemsSubscription as any).socket;
       console.log('[Notifications] 🕕 After 5s - Channel state:', itemsSubscription.state);
-      console.log('[Notifications] 🕕 After 5s - Socket state:', (itemsSubscription as any).socket?.connectionState);
+      console.log('[Notifications] 🕕 After 5s - Socket connectionState:', socketObj?.connectionState);
+      console.log('[Notifications] 🕕 After 5s - Socket readyState:', socketObj?.conn?.readyState);
+      console.log('[Notifications] 🕕 After 5s - Socket isConnected:', socketObj?.isConnected?.());
+
+      // Final diagnostic
+      if (socketObj?.conn?.readyState === 1) {
+        console.log('[Notifications] ✅ WebSocket is OPEN (readyState=1)');
+      } else {
+        console.error('[Notifications] ❌ WebSocket is NOT OPEN. ReadyState:', socketObj?.conn?.readyState);
+      }
     }, 5000);
 
     return () => {
