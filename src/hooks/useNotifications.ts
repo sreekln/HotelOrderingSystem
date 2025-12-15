@@ -33,12 +33,15 @@ export const useNotifications = (userId?: string, userRole?: string) => {
   };
 
   useEffect(() => {
-    if (!userId || userRole !== 'server') {
-      console.log('[Notifications] Not enabled - userId:', userId, 'userRole:', userRole);
+    console.log('[Notifications] Hook triggered - userId:', userId, 'userRole:', userRole);
+
+    if (!userId) {
+      console.log('[Notifications] ❌ Not enabled - no userId');
       return;
     }
 
-    console.log('[Notifications] ⚡ Setting up subscriptions for server:', userId);
+    console.log('[Notifications] ⚡ Setting up subscriptions for user:', userId, 'role:', userRole);
+    console.log('[Notifications] 🌐 Supabase client:', supabase);
 
     const channelName = `part_order_items_${Math.random().toString(36).substring(7)}`;
     console.log('[Notifications] Using channel:', channelName);
@@ -46,16 +49,22 @@ export const useNotifications = (userId?: string, userRole?: string) => {
     const channel = supabase.channel(channelName);
     console.log('[Notifications] 📺 Channel created:', channel);
 
+    // Test callback registration
+    console.log('[Notifications] 🎤 Registering callback for postgres_changes...');
+
     const itemsSubscription = channel
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'part_order_items'
         },
         async (payload: any) => {
           console.log('[Notifications] 🔔 RAW EVENT RECEIVED:', payload);
+          console.log('[Notifications] 🔔 Event type:', payload.eventType);
+          console.log('[Notifications] 🔔 Table:', payload.table);
+          console.log('[Notifications] 🔔 Schema:', payload.schema);
 
           try {
             const newStatus = payload.new?.status;
@@ -154,25 +163,44 @@ export const useNotifications = (userId?: string, userRole?: string) => {
       )
       .subscribe((status, err) => {
         console.log('[Notifications] 📡 Subscription status changed:', status);
+        console.log('[Notifications] 📡 Full status object:', { status, err });
         if (err) {
           console.error('[Notifications] ❌ Subscription error:', err);
         }
         if (status === 'SUBSCRIBED') {
           console.log('[Notifications] ✅ Successfully subscribed to part_order_items updates!');
+          console.log('[Notifications] ✅ Listening for UPDATE events on public.part_order_items');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[Notifications] ❌ CHANNEL ERROR - subscription failed');
+        } else if (status === 'TIMED_OUT') {
+          console.error('[Notifications] ❌ TIMED OUT - subscription timeout');
+        } else if (status === 'CLOSED') {
+          console.warn('[Notifications] ⚠️ CLOSED - subscription closed');
         }
       });
 
     console.log('[Notifications] 🎯 Subscription object:', itemsSubscription);
     console.log('[Notifications] 🎯 Channel state:', itemsSubscription.state);
 
+    // Log channel internals
+    console.log('[Notifications] 🔧 Channel socket state:', (itemsSubscription as any).socket?.connectionState);
+    console.log('[Notifications] 🔧 Channel subscriptions:', (itemsSubscription as any).bindings);
+
     // Log channel state changes
     setTimeout(() => {
       console.log('[Notifications] 🕐 After 1s - Channel state:', itemsSubscription.state);
+      console.log('[Notifications] 🕐 After 1s - Socket state:', (itemsSubscription as any).socket?.connectionState);
     }, 1000);
 
     setTimeout(() => {
       console.log('[Notifications] 🕑 After 3s - Channel state:', itemsSubscription.state);
+      console.log('[Notifications] 🕑 After 3s - Socket state:', (itemsSubscription as any).socket?.connectionState);
     }, 3000);
+
+    setTimeout(() => {
+      console.log('[Notifications] 🕕 After 5s - Channel state:', itemsSubscription.state);
+      console.log('[Notifications] 🕕 After 5s - Socket state:', (itemsSubscription as any).socket?.connectionState);
+    }, 5000);
 
     return () => {
       console.log('[Notifications] 🧹 Cleaning up subscription, final state:', itemsSubscription.state);
